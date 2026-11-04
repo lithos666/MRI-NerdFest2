@@ -48,7 +48,7 @@
 .hack-quantity-breakdown{max-width:190px;line-height:1.6}
 .hack-part-quantity[data-supplied-by=organizer]>strong{font-size:20px;line-height:1.4;color:#2265a0}
 .hack-part-quantity .hack-quantity-breakdown{font-size:12px;color:#626f7b}
-.hack-resource-reference-note{color:#92652d!important;font-size:12px!important;line-height:1.6}
+.hack-resource-reference-note{color:#737d89!important;font-size:12px!important;line-height:1.6}
 .basic-lab.workbench-shell{min-height:0;padding:0;margin-bottom:32px}
 .hack-physics-host .basic-lab .basic-lab-workbench{height:calc(100dvh - 155px);min-height:510px;max-height:900px;grid-template-columns:minmax(0,1fr) 340px}
 .basic-lab .design-inspector{padding:18px 16px}

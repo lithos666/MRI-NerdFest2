@@ -36994,13 +36994,14 @@
       "category": "print",
       "partIds": [],
       "stepIds": [],
-      "visibility": "resources",
-      "updateStatus": "current",
-      "versionStatus": "user-confirmed-final-print-batch",
+      "visibility": "hidden",
+      "updateStatus": "retired",
+      "versionStatus": "retired-print-download-replaced-by-assembly-cad",
       "downloadFilename": "Final_1.3mf",
       "estimatedPrintMinutes": 8358,
       "estimateSource": "user-provided",
-      "packageScope": "complete-final-print-set"
+      "packageScope": "complete-final-print-set",
+      "downloadAvailable": false
     },
     {
       "id": "print-final-2",
@@ -37014,13 +37015,14 @@
       "category": "print",
       "partIds": [],
       "stepIds": [],
-      "visibility": "resources",
-      "updateStatus": "current",
-      "versionStatus": "user-confirmed-final-print-batch",
+      "visibility": "hidden",
+      "updateStatus": "retired",
+      "versionStatus": "retired-print-download-replaced-by-assembly-cad",
       "downloadFilename": "Final_2.3mf",
       "estimatedPrintMinutes": 5379,
       "estimateSource": "user-provided",
-      "packageScope": "complete-final-print-set"
+      "packageScope": "complete-final-print-set",
+      "downloadAvailable": false
     },
     {
       "id": "print-final-3",
@@ -37034,13 +37036,14 @@
       "category": "print",
       "partIds": [],
       "stepIds": [],
-      "visibility": "resources",
-      "updateStatus": "current",
-      "versionStatus": "user-confirmed-final-print-batch",
+      "visibility": "hidden",
+      "updateStatus": "retired",
+      "versionStatus": "retired-print-download-replaced-by-assembly-cad",
       "downloadFilename": "Final_3.3mf",
       "estimatedPrintMinutes": 2269,
       "estimateSource": "user-provided",
-      "packageScope": "complete-final-print-set"
+      "packageScope": "complete-final-print-set",
+      "downloadAvailable": false
     },
     {
       "id": "print-final-4",
@@ -37054,14 +37057,15 @@
       "category": "print",
       "partIds": [],
       "stepIds": [],
-      "visibility": "resources",
-      "updateStatus": "current",
-      "versionStatus": "user-confirmed-final-print-batch",
+      "visibility": "hidden",
+      "updateStatus": "retired",
+      "versionStatus": "retired-print-download-replaced-by-assembly-cad",
       "downloadFilename": "Final_4.3mf",
       "previousEstimatedPrintMinutes": 1008,
       "estimateSource": "user-provided",
       "packageScope": "complete-final-print-set",
-      "estimatedPrintMinutes": 1169
+      "estimatedPrintMinutes": 1169,
+      "downloadAvailable": false
     },
     {
       "id": "placement-01",
@@ -37615,6 +37619,49 @@
       "referenceNoteZh": "与 BOM 示意图采用同一份提供的 STEP；完整装配位置与打印工艺须另行核对。",
       "referenceNoteEn": "The same supplied STEP used for the BOM rendering; verify full-assembly placement and printing separately.",
       "downloadAvailable": false
+    },
+    {
+      "bytes": 10042882,
+      "sha256": "1f15738912bae235e508296b7331f9fe8f77b38640c4633b7e15cf7aa106e3fe",
+      "id": "assembly-final-step",
+      "titleZh": "整机装配 CAD · Final.step",
+      "titleEn": "Complete assembly CAD · Final.step",
+      "type": "STEP",
+      "sourceRelativePath": "CAD模型/Final.step",
+      "url": "/resources/Final.step",
+      "category": "cad",
+      "partIds": [],
+      "stepIds": [],
+      "visibility": "resources",
+      "updateStatus": "current",
+      "versionStatus": "user-supplied-assembly-cad",
+      "downloadFilename": "Final.step",
+      "packageScope": "supplied-assembly-cad",
+      "referenceNoteZh": "用户提供的整机装配 STEP。梳状定位件另有独立文件，请同时查看；文件内容以实际提供的模型为准。",
+      "referenceNoteEn": "The supplied assembly STEP. A separate comb-device file is also provided; inspect both files and use their actual contents."
+    },
+    {
+      "bytes": 185629,
+      "sha256": "07f7ef3f60a37d27adb3a91d31e4900f6cc36c78f33a389861a7b2314acd003e",
+      "id": "comb-device-step",
+      "titleZh": "梳状定位源 CAD · comb-device.step",
+      "titleEn": "Comb source profiles · comb-device.step",
+      "type": "STEP",
+      "sourceRelativePath": "CAD模型/comb-device.step",
+      "url": "/resources/comb-device.step",
+      "category": "cad",
+      "partIds": [
+        "comb-alignment"
+      ],
+      "stepIds": [
+        "step-21"
+      ],
+      "visibility": "resources",
+      "updateStatus": "current",
+      "versionStatus": "user-supplied-comb-cad",
+      "downloadFilename": "comb-device.step",
+      "referenceNoteZh": "原始 4 槽、5 槽长梳形参考，未包含在 Final.step 内。第 11 阶段按用户确认演示 13 个层间各 6 个同形定位单元，共 78 个；本文件不是这些单元的独立制造文件。",
+      "referenceNoteEn": "Original 4-slot and 5-slot source profiles, supplied separately from Final.step. Stage 11 demonstrates the confirmed 6 identical alignment units per gap across 13 gaps, 78 total; this is not their standalone manufacturing file."
     }
   ],
   "confirmedCADInstanceCounts": {
@@ -37629,7 +37676,7 @@
     "M3 brass screws confirmed at 448 (32 per layer); screw length and torque pending (historical CAD 2.9×16 BF versus M3×18 reference)",
     "Eight brass M6 rods: four across R01–R05 and four across R10–R14; eight brass M6 nuts confirmed; rod cut lengths and tightening requirements pending",
     "Cylindrical spacers: supplied CAD has 18 mm length, 14 mm outer diameter and 6.2 mm passage; four spacers in each internal gap of R01–R05 and R10–R14 confirmed; physical printing fit pending",
-    "Clear cover: PMMA, 2 mm thick confirmed; hole-pattern DXF and comb-like alignment-device CAD not yet completed by the user",
+    "Clear cover: PMMA, 2 mm thick confirmed; hole-pattern DXF remains pending. Comb STEP is supplied separately; 78 locating units confirmed, with manufacturing fit not certified.",
     "Organizer provides 20 L-brackets, one aluminium frame, 112 extrusion bolts and 112 T-slot nuts; use supplied specifications"
   ],
   "registrationNotes": [
@@ -37757,6 +37804,26 @@
       "tSlotNutQuantity": 112,
       "quantityStatus": "user-confirmed",
       "materialStatus": "pending"
+    },
+    "combAlignment": {
+      "partId": "comb-alignment",
+      "quantity": 78,
+      "quantityStatus": "user-confirmed",
+      "gapCount": 13,
+      "unitsPerGap": 6,
+      "upperPerGap": 3,
+      "lowerPerGap": 3,
+      "stationAnglesDegrees": [
+        22,
+        82,
+        142,
+        202,
+        248,
+        322
+      ],
+      "geometryStatus": "teaching-unit-derived-from-supplied-comb-profile",
+      "materialStatus": "pending",
+      "manufacturingFitStatus": "nominal-axial-face-contact-no-allowance-certified"
     }
   },
   "confirmedBOMQuantities": {
@@ -37783,6 +37850,7 @@
     "frameLBrackets": 20,
     "extrusionFrames": 1,
     "extrusionMountingBolts": 112,
-    "tSlotNuts": 112
+    "tSlotNuts": 112,
+    "combAlignmentUnits": 78
   }
 }

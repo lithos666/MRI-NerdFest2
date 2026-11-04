@@ -32,6 +32,7 @@ export default function BOMPartViewer({ modelURL, imageURL, label, sourceName, a
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const isProductIllustration = modelURL.startsWith("/bom/products/");
+  const isDerivedTeachingUnit = modelURL.split("?")[0] === "/assembly/tools/comb-tooth-unit.glb";
 
   useEffect(() => { runtime.current?.setActive(active); }, [active]);
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function BOMPartViewer({ modelURL, imageURL, label, sourceName, a
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = isProductIllustration ? .72 : 1;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.domElement.tabIndex = 0;
     renderer.domElement.setAttribute("role", "img");
     container.appendChild(renderer.domElement);
@@ -197,7 +198,7 @@ export default function BOMPartViewer({ modelURL, imageURL, label, sourceName, a
     const dispose = () => {
       cancelled = true; controller.abort(); cancelAnimationFrame(frame); cancelAnimationFrame(resizeFrame); observer.disconnect();
       controls.dispose(); cleanGeometry.forEach(geometry => geometry.dispose()); cleanMaterial.forEach(material => material.dispose());
-      environment.dispose(); pmrem.dispose(); renderer.dispose(); renderer.domElement.remove();
+      environment.dispose(); pmrem.dispose(); renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
     };
     runtime.current = { setActive, reset: () => { fit(); render(); }, dispose };
     resize();
@@ -210,6 +211,6 @@ export default function BOMPartViewer({ modelURL, imageURL, label, sourceName, a
     {loading && <div className="bom-part-viewer__status" role="status">{t("正在载入零件模型…", "Loading part model…")}</div>}
     {error && <div className="bom-part-viewer__fallback"><img src={imageURL} alt={label}/><p>{t("此浏览器暂时无法显示 3D；仍可查看同一零件的渲染图。", "3D is unavailable in this browser; the image shows the same part.")}</p></div>}
     <div className="bom-part-viewer__controls"><span>{t("拖动旋转 · 滚轮缩放 · 右键平移", "Drag to rotate · Scroll to zoom · Right-drag to pan")}</span><button onClick={() => runtime.current?.reset()} disabled={loading || error}><RotateCcw size={14}/>{t("复位", "Reset view")}</button></div>
-    <p className="bom-part-viewer__caption">{isProductIllustration ? t("立体用途示意；以提供物料为准", "3D product illustration; check supplied parts") : t("来自提供的 STEP", "From provided STEP")} · {sourceName}</p>
+    <p className="bom-part-viewer__caption">{isDerivedTeachingUnit ? t("根据源 CAD 制作的教学单元 · 非独立制造 CAD", "Teaching unit derived from source CAD · not standalone manufacturing CAD") : isProductIllustration ? t("立体用途示意；以提供物料为准", "3D product illustration; check supplied parts") : t("来自提供的 STEP", "From provided STEP")} · {sourceName}</p>
   </div>;
 }

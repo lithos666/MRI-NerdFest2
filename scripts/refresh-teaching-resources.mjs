@@ -6,7 +6,7 @@ import { buildTeachingResources, updateConfirmedHardwareMetadata } from './teach
 // changing the magnetic model. The participant's original source stays intact.
 const project = path.resolve(import.meta.dirname, '..');
 const argv = Object.fromEntries(process.argv.slice(2).map(arg => { const [key, ...rest] = arg.split('='); return [key.replace(/^--/, ''), rest.join('=')]; }));
-const source = path.resolve(argv.source || 'G:/OneDrive/桌面/MRI/new_generation_prototype');
+const source = path.resolve(argv.source || 'G:/OneDrive/桌面/MRI/1_big ioring_new_generation_prototype');
 const matlabDirectory = path.resolve(argv.matlab || path.join(project, 'matlab'));
 const manifestFile = path.join(project, 'lib/cad-manifest.json');
 const manifest = updateConfirmedHardwareMetadata(JSON.parse(fs.readFileSync(manifestFile, 'utf8')));
@@ -15,4 +15,4 @@ manifest.resources = buildTeachingResources({ project, source, matlabDirectory, 
 fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2) + '\n');
 fs.writeFileSync(path.join(project, 'lib/teaching-resources.json'), JSON.stringify(manifest.resources, null, 2) + '\n');
 fs.writeFileSync(path.join(project, 'public/assembly/manifest.json'), JSON.stringify(manifest) + '\n');
-console.log(JSON.stringify({ status: 'updated', resources: manifest.resources.length, finalPrintFiles: manifest.resources.filter(r => r.category === 'print').map(r => r.downloadFilename), printEstimatePending: manifest.resources.some(r => r.category === 'print' && typeof r.estimatedPrintMinutes !== 'number'), knownEstimatedPrintMinutes: manifest.resources.filter(r => r.category === 'print').reduce((sum, r) => sum + (r.estimatedPrintMinutes ?? 0), 0), retiredCADDownloads: manifest.resources.filter(r => r.category === 'cad' && r.downloadAvailable === false).length, matlabFiles: manifest.resources.filter(r => r.type === 'MATLAB').length, sourceCADProvenancePreserved: preservePublishedCAD, sourceMATLABModified: false, magneticModelModified: false }));
+console.log(JSON.stringify({ status: 'updated', resources: manifest.resources.length, modelDownloads: manifest.resources.filter(r => r.category === 'cad' && r.visibility === 'resources' && r.updateStatus === 'current').map(r => r.downloadFilename), visiblePrintFiles: manifest.resources.filter(r => r.category === 'print' && r.visibility === 'resources' && r.updateStatus === 'current').length, retiredCADDownloads: manifest.resources.filter(r => r.category === 'cad' && r.downloadAvailable === false).length, matlabFiles: manifest.resources.filter(r => r.type === 'MATLAB').length, sourceCADProvenancePreserved: preservePublishedCAD, sourceMATLABModified: false, magneticModelModified: false }));

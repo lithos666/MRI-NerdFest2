@@ -11,11 +11,15 @@ import {magnetBasis} from "@/lib/field";
 import {useLanguage,directionEnglish} from "@/lib/language-context";
 import {ASSEMBLY_RUNTIME_MANIFEST_URL} from "@/lib/assembly-assets.generated";
 import acrylicClipAsset from "@/lib/acrylic-clip-asset.json";
+import combAlignmentAsset from "@/lib/comb-alignment-asset.json";
 import {fetchTeachingAsset} from "@/lib/teaching-asset-cache";
 import {ASSEMBLY_DURATION_SECONDS,ASSEMBLY_EASING,assemblyTiming,assemblyEaseInOut,assemblyPhaseProgress,assemblyCameraBlend} from "@/lib/assembly-timing";
 import {CLEAR_COVER_QUARTERS,CLIPS_PER_QUARTER,TEMPORARY_CLIP_COUNT,RETAINER_LOCATIONS,ringCapQuarterProgress,ringClipArrival} from "@/lib/assembly-ring-retainers";
 import {ACRYLIC_THICKNESS_MM,ASSEMBLY_BORE_DIAMETER_MM,CONFIRMED_ROD_QUANTITY,VERIFIED_ROD_AXES,ROD_LAYER_GROUPS,rodBankExtentMM,SPACER_GAPS,assemblyCADBoreCorrectionRadians} from "@/lib/assembly-sequence-geometry";
 import {isAssemblySequenceStage,legacyAssemblyScene,sequenceBaseQuarters,sequenceLoadingProgress,sequenceColumnCycle,sequenceColumnPose,sequenceCoveredColumns,sequenceCapPose,sequenceClipPose,sequenceCoverFraction} from "@/lib/assembly-sequence";
+import {createAssemblyGeometryOwner} from "@/lib/assembly-renderer-geometry";
+import {FRAME_HOLDER_FASTENERS,frameLayerArrival,frameFastenerProgress} from "@/lib/assembly-frame-fastening";
+import {COMB_STATION_ANGLES_DEG,COMB_GAP_CENTERS_MM,COMB_PER_GAP,COMB_UNIT_COUNT,COMB_CLEARANCE_STATUS,combUnitPose,combCameraBlend} from "@/lib/assembly-comb-layout";
 import "./assembly-stage.css";
 
 export interface AssemblyStageProps {
@@ -139,7 +143,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
 
  useEffect(()=>{
   let cancelled=false;
-  queueMicrotask(()=>{if(cancelled)return;setProgress(startingProgress);setPlaying(false);setSelected(null);setCameraMode("recommended");setExploded(false);});
+  queueMicrotask(()=>{if(cancelled)return;setProgress(startingProgress);setPlaying(false);setSelected(null);setCameraMode("recommended");setExploded(false);if(step===21)setCutaway(false);});
   return()=>{cancelled=true;};
  },[step,ring,partId,startingProgress]);
  useEffect(()=>{runtime.current?.update(latest.current);},[step,ring,partId,progress,playing,speed,active,highlight,transparent,cutaway,exploded]);
@@ -176,6 +180,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
   // element together, while the aluminum frame remains level in world space.
   root.add(individual,whole,supportGroup,locatorGroup,rodGroup,acrylicGroup,axisGroup);scene.add(frameGroup);
   const ownedGeometry=new Set<THREE.BufferGeometry>(),ownedMaterial=new Set<THREE.Material>();
+  const rendererGeometry=createAssemblyGeometryOwner();
   const ownGeo=<T extends THREE.BufferGeometry>(g:T)=>{ownedGeometry.add(g);return g;};
   const ownMat=<T extends THREE.Material>(m:T)=>{ownedMaterial.add(m);return m;};
   // The exact supplied clip mesh is reused on the two half-layer operations.
@@ -185,6 +190,10 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
   const isolatedClip=new THREE.Group();root.add(isolatedClip);isolatedClip.visible=false;
   const clipMaterial=ownMat(new THREE.MeshStandardMaterial({color:0x1677bb,roughness:.4,metalness:0}));
   const clipEdgeMaterial=ownMat(new THREE.LineBasicMaterial({color:0x064d7b,transparent:true,opacity:.38}));
+  const combUnits=new THREE.Group();scene.add(combUnits);combUnits.visible=false;
+  const combUnitDraws:THREE.InstancedMesh[]=[];
+  const combMaterial=ownMat(new THREE.MeshStandardMaterial({color:0x65969c,metalness:0,roughness:.46}));
+  const combTransform=new THREE.Object3D();let combReady=false,combLoading=false,visibleCombUnits=0,combUpperCount=0,combLowerCount=0;
   const jawGap=acrylicClipAsset.jawOpening.clearanceMM;
   // STEP #712/#715 identify the concentric 205/213 mm clip-back cylinders.
   // Undo only the preview centring, then place that same circular frame on
@@ -208,13 +217,21 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
     for(const item of meshes){
      const edgeGeometry=ownGeo(new THREE.EdgesGeometry(item.geometry,28));
      for(const parent of [...clipInstances,isolatedClip]){
-      const mesh=new THREE.Mesh(item.geometry,clipMaterial);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);
+      const mesh=new THREE.Mesh(rendererGeometry.get(item.geometry),clipMaterial);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);
       parent.add(new THREE.LineSegments(edgeGeometry,clipEdgeMaterial));
      }
     }
     isolatedClip.rotation.z=openingAngle;
     clipReady=true;clipLoading=false;apply();cameraTargets();updateReady();
    }catch{if(!disposed){clipLoading=false;setError(true);toggleLoading(false);}}
+  }
+  async function loadCombUnits(){
+   if(combReady||combLoading)return;combLoading=true;
+   try{
+    const meshes=await loadCAD({id:"source-derived-comb-unit",url:combAlignmentAsset.derivedUnit.url});if(disposed)return;
+    for(const item of meshes){const draw=new THREE.InstancedMesh(rendererGeometry.get(item.geometry),combMaterial,COMB_UNIT_COUNT);draw.instanceMatrix.setUsage(THREE.DynamicDrawUsage);draw.castShadow=true;draw.receiveShadow=true;combUnits.add(draw);combUnitDraws.push(draw);}
+    combReady=true;combLoading=false;apply();cameraTargets();updateReady();
+   }catch{if(!disposed){combLoading=false;setError(true);toggleLoading(false);}}
   }
   const edgeMat=ownMat(new THREE.LineBasicMaterial({color:0x74736f,transparent:true,opacity:.18}));
   const highlightMat=ownMat(new THREE.MeshStandardMaterial({color:0xbddcff,metalness:.03,roughness:.4}));
@@ -248,12 +265,13 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
   const spacerCylinder=new THREE.Mesh(spacerGeometry,spacerMaterial);spacerCylinder.name="confirmed-cylinder-spacer-preview";spacerCylinder.castShadow=true;spacerCylinder.receiveShadow=true;
   spacerPreview.add(spacerCylinder,new THREE.LineSegments(ownGeo(new THREE.EdgesGeometry(spacerGeometry,35)),edgeMat));spacerPreview.visible=false;
   const display:DisplayMesh[]=[],wholeDisplay:DisplayMesh[]=[];
-  let localToken=0,fullToken=0,disposed=false,currentRing=-1,fullLoaded=false,fullComplete=false,ringComplete=-1,assetManifest:AssemblyManifest|null=null;
+  let localToken=0,fullToken=0,disposed=false,sceneReady=false,currentRing=-1,fullLoaded=false,fullComplete=false,ringComplete=-1,assetManifest:AssemblyManifest|null=null;
   let current={...latest.current,scene:latest.current.step,step:legacyAssemblyScene(latest.current.step)},raf=0,previousTime=0,reportTime=0,autoCamera=true,lastRodCameraProgress=-1;
   const targetWhole=new THREE.Vector3(),targetDetail=new THREE.Vector3(),eyeWhole=new THREE.Vector3(),eyeDetail=new THREE.Vector3();
   let focusedId:string|null=null;
   const jointDirection=new THREE.Vector3(0,1,0),closureDirection=new THREE.Vector3(1,0,0);
   const liftDirection=new THREE.Vector3(0,1,0);
+  const frameArrival=()=>current.scene===18?frameLayerArrival(current.progress):range(current.progress,...assemblyTiming.frameMount);
   function alignMountingFrame(){
    const phase=assetManifest?.layers[1]?.registration?.phaseCorrectionDeg??0;
    root.rotation.z=THREE.MathUtils.degToRad(-phase);
@@ -268,7 +286,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
   function makeCAD(meshes:CADMesh[],parent:THREE.Group,destination:DisplayMesh[],layer:number,shift:number,edges=true){
    for(const item of meshes){
     const material=materials[item.role].clone();ownedMaterial.add(material);
-    const mesh=new THREE.Mesh(item.geometry,material);mesh.name=item.name;mesh.castShadow=item.role!=="acrylic";mesh.receiveShadow=true;mesh.userData={role:item.role,ring:layer};
+    const mesh=new THREE.Mesh(rendererGeometry.get(item.geometry),material);mesh.name=item.name;mesh.castShadow=item.role!=="acrylic";mesh.receiveShadow=true;mesh.userData={role:item.role,ring:layer};
     mesh.position.z=shift;parent.add(mesh);
     let edge:THREE.LineSegments|null=null;
     if(edges&&item.role!=="fastener"&&item.role!=="acrylic"){
@@ -286,8 +304,9 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    if(disposed)return;
    const full=(current.step===0&&!current.partId)||current.step===7||current.step===9;
    const needsClip=(isNewSequence()?[12,13,14,15,16].includes(current.scene):isRingRetainerStep()&&current.step!==5)||partRole(current.partId)==="temporary-clip";
-   const ready=(full?fullComplete:ringComplete===current.ring)&&(!needsClip||clipReady);
-   setReady(ready);toggleLoading(!ready);
+   const needsComb=current.scene===21&&!current.partId;
+   const ready=(full?fullComplete:ringComplete===current.ring)&&(!needsClip||clipReady)&&(!needsComb||combReady);
+   sceneReady=ready;setReady(ready);toggleLoading(!ready);
   }
   async function loadRing(layer:number){
    const token=++localToken;currentRing=layer;toggleLoading(true);setError(false);setReady(false);
@@ -409,6 +428,35 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    bracketIndex++;
   }
   for(const mesh of [brackets,boltHeads,boltSockets]){mesh.castShadow=mesh!==boltSockets;mesh.receiveShadow=true;mesh.computeBoundingSphere();frameGroup.add(mesh);}
+  // The eight existing holder holes are real CAD axes. The matching bolt and
+  // European T-nut shapes are teaching illustrations, not released stock sizes.
+  const holderFasteners=new THREE.Group();scene.add(holderFasteners);
+  const mountMetal=ownMat(new THREE.MeshStandardMaterial({color:0xbcc6cf,metalness:.88,roughness:.25}));
+  const mountRecess=ownMat(new THREE.MeshStandardMaterial({color:0x354451,metalness:.65,roughness:.4}));
+  const mountHeadShape=new THREE.Shape();mountHeadShape.absarc(0,0,4.05,0,Math.PI*2,false);
+  const mountSocket=new THREE.Path();for(let corner=0;corner<=6;corner++){const a=corner*Math.PI/3;corner?mountSocket.lineTo(1.7*Math.cos(a),1.7*Math.sin(a)):mountSocket.moveTo(1.7,0);}mountHeadShape.holes.push(mountSocket);
+  const mountHeadGeometry=ownGeo(new THREE.ExtrudeGeometry(mountHeadShape,{depth:3.8,bevelEnabled:false,curveSegments:20}));mountHeadGeometry.rotateX(-Math.PI/2);
+  const mountShaftGeometry=ownGeo(new THREE.CylinderGeometry(2.1,2.1,14,18));mountShaftGeometry.translate(0,-7,0);
+  const nutShape=new THREE.Shape();nutShape.moveTo(-5,-14);nutShape.lineTo(5,-14);nutShape.quadraticCurveTo(8,-14,8,-11);nutShape.lineTo(8,11);nutShape.quadraticCurveTo(8,14,5,14);nutShape.lineTo(-5,14);nutShape.quadraticCurveTo(-8,14,-8,11);nutShape.lineTo(-8,-11);nutShape.quadraticCurveTo(-8,-14,-5,-14);
+  const nutPassage=new THREE.Path();nutPassage.absarc(0,0,2.35,0,Math.PI*2,true);nutShape.holes.push(nutPassage);
+  const mountNutGeometry=ownGeo(new THREE.ExtrudeGeometry(nutShape,{depth:3,bevelEnabled:false,curveSegments:10}));mountNutGeometry.rotateX(-Math.PI/2);mountNutGeometry.translate(0,-1.5,0);
+  const mountNutBossShape=new THREE.Shape();mountNutBossShape.absarc(0,0,3.9,0,Math.PI*2);mountNutBossShape.holes.push(nutPassage.clone());
+  const mountNutBossGeometry=ownGeo(new THREE.ExtrudeGeometry(mountNutBossShape,{depth:2,bevelEnabled:false,curveSegments:20}));mountNutBossGeometry.rotateX(-Math.PI/2);mountNutBossGeometry.translate(0,1.4,0);
+  const mountSocketGeometry=ownGeo(new THREE.CylinderGeometry(1.6,1.6,.08,6));
+  const mountingDraws=[
+   {part:"bolt",geometry:mountHeadGeometry,material:mountMetal,offset:0},
+   {part:"bolt",geometry:mountShaftGeometry,material:mountMetal,offset:0},
+   {part:"bolt",geometry:mountSocketGeometry,material:mountRecess,offset:2.1},
+   {part:"nut",geometry:mountNutGeometry,material:mountMetal,offset:0},
+   {part:"nut",geometry:mountNutBossGeometry,material:mountMetal,offset:0},
+  ].map(item=>{const mesh=new THREE.InstancedMesh(item.geometry,item.material,FRAME_HOLDER_FASTENERS.length*cubeModel.rings.length);mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);mesh.castShadow=true;mesh.receiveShadow=true;holderFasteners.add(mesh);return {...item,mesh,offsetMatrix:new THREE.Matrix4().makeTranslation(0,item.offset,0)};});
+  const mountingMatrix=new THREE.Matrix4(),mountingPartMatrix=new THREE.Matrix4();let visibleFrameFastenerCount=0;
+  const frameFastenerInstances=FRAME_HOLDER_FASTENERS.map(anchor=>{
+   const group=new THREE.Group(),bolt=new THREE.Group(),nut=new THREE.Group();
+   group.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(...anchor.outward));
+   const guide=new THREE.Line(ownGeo(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,-17,0),new THREE.Vector3(0,43,0)])),ownMat(new THREE.LineDashedMaterial({color:0x2788ce,dashSize:3,gapSize:2,transparent:true,opacity:.6})));guide.computeLineDistances();
+   group.add(guide);holderFasteners.add(group);return {anchor,group,bolt,nut,guide};
+  });
   container.dataset.frameProfiles="9";container.dataset.frameGeometryVariants=String(profileCache.size);container.dataset.frameBrackets=String(bracketIndex);container.dataset.studioEnvironment=studioEnvironment?"procedural":"direct";
   const rodMaterial=ownMat(new THREE.MeshStandardMaterial({color:0x9d855b,roughness:.36,metalness:.72}));
   const rodBankDefinitions=ROD_LAYER_GROUPS.map(layers=>({...rodBankExtentMM(cubeModel.rings[layers[0]-1].zMM,cubeModel.rings[layers[layers.length-1]-1].zMM),layers}));
@@ -530,7 +578,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
     if(!visible)continue;
     if(magnet.ring===current.ring)presentedColumns.add(magnet.sector);
     if(current.exploded&&full)position.z+=(7.5-magnet.ring)*18;
-    if(current.step===8&&!preview)position.addScaledVector(liftDirection,(1-range(current.progress,...assemblyTiming.frameMount))*82);
+    if(current.step===8&&!preview)position.addScaledVector(liftDirection,(1-frameArrival())*82);
     const orientation=orient(magnet).clone(),normal=physicalDirection(magnet.normal);
     dummy.scale.setScalar(1);dummy.position.copy(position);dummy.quaternion.copy(orientation);dummy.updateMatrix();magnetBody.setMatrixAt(k,dummy.matrix);
     dummy.position.copy(position).addScaledVector(normal,3);dummy.updateMatrix();magnetNorth.setMatrixAt(k,dummy.matrix);
@@ -562,6 +610,16 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
   function apply(){
    const preview=partRole(current.partId),full=(current.step===0&&!preview)||current.step===7||current.step===9;
    const ringRetainerView=isRingRetainerStep(),clipOnly=preview==="temporary-clip";
+   combUnits.visible=current.scene===21&&!preview&&combReady;
+   visibleCombUnits=0;combUpperCount=0;combLowerCount=0;
+   for(let gap=0;gap<COMB_GAP_CENTERS_MM.length;gap++)for(let station=0;station<COMB_PER_GAP;station++){
+    const pose=combUnitPose(current.progress,gap,station);if(!pose.visible)continue;
+    combTransform.position.fromArray(pose.position);combTransform.rotation.set(0,0,pose.rotationZ);combTransform.updateMatrix();
+    for(const draw of combUnitDraws)draw.setMatrixAt(visibleCombUnits,combTransform.matrix);
+    visibleCombUnits++;if(COMB_STATION_ANGLES_DEG[station]<180)combUpperCount++;else combLowerCount++;
+   }
+   for(const draw of combUnitDraws){draw.count=visibleCombUnits;draw.instanceMatrix.needsUpdate=true;draw.computeBoundingSphere();}
+   combMaterial.color.setHex(current.highlight?0x57999f:0xa2afb1);combMaterial.transparent=current.transparent;combMaterial.opacity=current.transparent?.45:1;
    isolatedClip.visible=clipOnly&&clipReady;
    const sequential=isNewSequence(),visibleQuarters=sequential?sequenceBaseQuarters(current.scene):[0,1,2,3];
    ringRetainers.visible=!preview&&clipReady&&(sequential?[12,13,14,15,16].includes(current.scene):[4,10].includes(current.step));
@@ -596,6 +654,8 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    (floor.material as THREE.ShadowMaterial).opacity=cinematic?.27:.14;
    frameMaterial.roughness=cinematic?.23:.3;
    frameMaterial.envMapIntensity=cinematic?1.25:1;
+   const revealingFasteners=current.scene===18&&current.progress>.44&&current.progress<.94&&!preview;
+   frameMaterial.transparent=revealingFasteners;frameMaterial.opacity=revealingFasteners?.28:1;frameMaterial.depthWrite=!revealingFasteners;
    frameEdges.opacity=cinematic?.33:.25;
    northMaterial.color.setHex(cinematic?0xed292d:0xe84b49);
    southMaterial.color.setHex(cinematic?0x006be5:0x1675d9);
@@ -623,7 +683,25 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    ringLabels.visible=full&&current.exploded;
    for(const label of ringLabels.children){const ring=Number(label.userData.ring);label.position.z=cubeModel.rings[ring-1].zMM+(current.exploded?(7.5-ring)*18:0);label.visible=current.step!==9||ring<=Math.ceil(1+range(current.progress,...assemblyTiming.layers)*13);}
    acrylicGroup.position.set(0,0,ringBack+ringBaseThickness);acrylicGroup.rotation.z=sequential?0:ringQuarterStart;
-   if(current.step===8&&!preview)acrylicGroup.position.addScaledVector(liftDirection,(1-range(current.progress,...assemblyTiming.frameMount))*82);
+   if(current.step===8&&!preview)acrylicGroup.position.addScaledVector(liftDirection,(1-frameArrival())*82);
+   holderFasteners.visible=!preview&&[0,18,19,20,21].includes(current.scene);
+   visibleFrameFastenerCount=0;
+   const mountingLayers=current.scene===18?[cubeModel.rings[current.ring-1]]:cubeModel.rings;
+   for(const layer of mountingLayers){
+    const n=current.scene===19?1+range(current.progress,...assemblyTiming.layers)*13:14;if(layer.id>Math.ceil(n))continue;
+    const layerShift=current.scene===19&&layer.id>Math.floor(n)?-smooth(Math.ceil(n)-n)*65:0;
+    for(const [index,item] of frameFastenerInstances.entries()){
+     const state=current.scene===18?frameFastenerProgress(current.progress,index):{visible:true,nut:1,bolt:1,tighten:1};
+     item.group.visible=state.visible;item.group.position.set(item.anchor.entry[0],item.anchor.entry[1],layer.zMM+item.anchor.entry[2]+layerShift);item.group.updateMatrix();
+     item.nut.position.set(0,-item.anchor.wallMM-5.5,26*(1-state.nut));item.nut.updateMatrix();
+     item.bolt.position.y=35*(1-state.bolt);item.bolt.rotation.y=-Math.PI*4*(1-state.tighten);item.bolt.updateMatrix();
+     item.guide.visible=current.scene===18&&current.highlight&&state.tighten<1;
+     if(!state.visible)continue;
+     for(const draw of mountingDraws){mountingPartMatrix.multiplyMatrices(draw.part==="bolt"?item.bolt.matrix:item.nut.matrix,draw.offsetMatrix);mountingMatrix.multiplyMatrices(item.group.matrix,mountingPartMatrix);draw.mesh.setMatrixAt(visibleFrameFastenerCount,mountingMatrix);}
+     visibleFrameFastenerCount++;
+    }
+   }
+   for(const draw of mountingDraws){draw.mesh.count=visibleFrameFastenerCount;draw.mesh.instanceMatrix.needsUpdate=true;draw.mesh.computeBoundingSphere();}
    for(const sector of acrylicSectors){
     const coverFraction=sequential?sequenceCoverFraction(current.scene,current.progress,sector.quarter):1;
     const fitted=current.step===5&&!preview&&!sequential?range(current.progress,.055+sector.quarter*.205,.235+sector.quarter*.205):1;
@@ -721,7 +799,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
     const sequenceJoint=sequential&&object.role==="base"&&(current.scene===11&&object.quarter===0||current.scene===14&&current.progress<.16&&object.quarter===2);
     const highlight=current.highlight&&(sequenceJoint||!ringRetainerView&&roleTarget()===object.role&&(current.step!==1||object.quarter===0)&&(current.step!==2||object.quarter>=2));
     material.color.copy(highlight?highlightMat.color:original);
-    material.transparent=current.transparent&&["base","cover","support"].includes(object.role)||object.role==="acrylic";
+    material.transparent=current.transparent&&["base","cover","support"].includes(object.role)||object.role==="acrylic"||revealingFasteners&&object.role==="support";
     material.opacity=material.transparent?(object.role==="acrylic"?.22:.24):1;material.depthWrite=!material.transparent;
     material.clippingPlanes=current.cutaway&&!ringRetainerView&&!preview?[clippingPlane]:[];material.clipShadows=true;
     if(object.edge){(object.edge.material as THREE.LineBasicMaterial).clippingPlanes=current.cutaway&&!ringRetainerView&&!preview?[clippingPlane]:[];object.edge.visible=visible&&!full&&!current.transparent;}
@@ -730,7 +808,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    rodGroup.position.z=0;
    rodBanks.forEach((bank,index)=>{const definition=rodBankDefinitions[index];bank.position.z=definition.center+(index===0?1:-1)*insertion*(definition.displayLength+30);});
    if(current.step===7&&current.progress!==lastRodCameraProgress){lastRodCameraProgress=current.progress;cameraTargets(false);}
-   const drop=current.step===8?(1-range(current.progress,...assemblyTiming.frameMount))*82:0;
+   const drop=current.step===8?(1-frameArrival())*82:0;
    for(const group of [individual,supportGroup,locatorGroup])group.position.copy(liftDirection).multiplyScalar(drop);
    buildMagnets();
    container!.dataset.magnetCount=String(magnetBody.count);container!.dataset.ring=String(current.ring);container!.dataset.step=String(current.scene);container!.dataset.legacyStep=String(current.step);
@@ -761,9 +839,15 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    container!.dataset.loadedColumnCount=String(loadedColumnCount);container!.dataset.coveredColumnCount=coveredColumnCount.toFixed(4);container!.dataset.presentedColumnCount=String(presentedColumnCount);container!.dataset.heldColumnCount=String(heldColumnCount);
    container!.dataset.capVisibility=capStates.map(state=>state.visible?1:0).join(",");container!.dataset.capFastened=capStates.map(state=>state.visible&&state.fasten===1?1:0).join(",");
    container!.dataset.sideSupportsFastened=String(current.scene>=18||current.scene===17&&current.progress>=.88);
-   container!.dataset.combGeometryStatus=current.scene===21?"pending-design":"not-applicable";
+   container!.dataset.combGeometryStatus=current.scene===21?"source-derived-module":"not-applicable";
+   container!.dataset.combUnitCount=String(combUnits.visible?visibleCombUnits:0);container!.dataset.combGapCount=String(COMB_GAP_CENTERS_MM.length);container!.dataset.combPerGap=String(COMB_PER_GAP);
+   container!.dataset.combUpperCount=String(combUnits.visible?combUpperCount:0);container!.dataset.combLowerCount=String(combUnits.visible?combLowerCount:0);container!.dataset.combStationAngles=JSON.stringify(COMB_STATION_ANGLES_DEG);container!.dataset.combClearanceStatus=COMB_CLEARANCE_STATUS;
    container!.dataset.clipPlacementStatus="regular-full-ring-teaching-positions";
    container!.dataset.frameVisible=String(frameGroup.visible);container!.dataset.supportVisible=String(supportGroup.visible);
+   container!.dataset.frameFastenersVisible=String(holderFasteners.visible);container!.dataset.frameBoltCount=String(holderFasteners.visible?visibleFrameFastenerCount:0);container!.dataset.frameTnutCount=container!.dataset.frameBoltCount;
+   container!.dataset.frameMountBoltCount=container!.dataset.frameBoltCount;container!.dataset.frameMountNutCount=container!.dataset.frameTnutCount;
+   container!.dataset.frameFastenerAxes="verified-support-bores";container!.dataset.frameHardwareSpecification="illustrative-unconfirmed-stock-size";
+   container!.dataset.frameFastenersTightened=String(holderFasteners.visible&&frameFastenerInstances.every((_,index)=>current.scene!==18||frameFastenerProgress(current.progress,index).tighten===1));
    const visibleRoles:Record<string,number>={base:0,cover:0,fastener:0,support:0,locator:0};
    for(const item of full?wholeDisplay:display)if(item.mesh.visible&&item.mesh.parent?.visible)visibleRoles[item.role]=(visibleRoles[item.role]??0)+1;
    container!.dataset.visibleRoles=JSON.stringify(visibleRoles);
@@ -790,7 +874,8 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
     const direction=eyeWhole.clone().sub(targetWhole).normalize();
     const rodLow=current.step===7?Math.min(...rodBanks.map((bank,index)=>bank.position.z-rodBankDefinitions[index].displayLength/2)):-315;
     const rodHigh=current.step===7?Math.max(...rodBanks.map((bank,index)=>bank.position.z+rodBankDefinitions[index].displayLength/2)):315;
-    const low=new THREE.Vector3(-270,-305,Math.min(-315,rodLow)),high=new THREE.Vector3(270,current.step===8?290:210,Math.max(315,rodHigh));
+    const halfWidth=current.scene===21?310:current.scene===18?310:270;
+    const low=new THREE.Vector3(-halfWidth,-305,Math.min(-315,rodLow)),high=new THREE.Vector3(halfWidth,current.scene===21?300:current.step===8?290:210,Math.max(315,rodHigh));
     const center=low.clone().add(high).multiplyScalar(.5);
     const right=new THREE.Vector3(0,1,0).cross(direction).normalize(),up=direction.clone().cross(right).normalize();
     const tanY=Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*.88,tanX=tanY*camera.aspect;
@@ -816,6 +901,9 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    targetDetail.applyMatrix4(mountingRotation);eyeDetail.applyMatrix4(mountingRotation);
    if(!full&&current.step!==8&&!preview){targetWhole.applyMatrix4(mountingRotation);eyeWhole.applyMatrix4(mountingRotation);}
    if(preview){targetDetail.copy(targetWhole);eyeDetail.copy(eyeWhole);}
+   if(current.scene===21){
+    const first=combUnitPose(Math.max(current.progress,.14),0,0);targetDetail.fromArray(first.position);eyeDetail.copy(targetDetail).add(new THREE.Vector3(125,95,220));
+   }
    if(isRingRetainerStep()){
     // The Word sequence prepares one complete semicircle before joining the
     // two halves. All three views keep that working half (or full ring) intact.
@@ -849,13 +937,13 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
     targetWhole.applyMatrix4(mountingRotation);eyeWhole.applyMatrix4(mountingRotation);targetDetail.applyMatrix4(mountingRotation);eyeDetail.applyMatrix4(mountingRotation);
    }
    if(preview==="temporary-clip"){targetWhole.set(0,0,0);eyeWhole.set(80,52,110);targetDetail.copy(targetWhole);eyeDetail.copy(eyeWhole);}
-   if(snap&&autoCamera){const blend=current.step===0?0:assemblyCameraBlend(current.progress);camera.position.copy(eyeWhole).lerp(eyeDetail,blend);controls.target.copy(targetWhole).lerp(targetDetail,blend);controls.update();}
+   if(snap&&autoCamera){const blend=current.scene===0?0:current.scene===21?combCameraBlend(current.progress):assemblyCameraBlend(current.progress);camera.position.copy(eyeWhole).lerp(eyeDetail,blend);controls.target.copy(targetWhole).lerp(targetDetail,blend);controls.update();}
   }
   function chooseView(kind:"recommended"|"whole"|"detail"){
    apply();updateReady();
    autoCamera=kind==="recommended";
    cameraTargets(false);
-   const blend=kind==="recommended"&&current.step!==0?assemblyCameraBlend(current.progress):kind==="detail"?1:0;
+   const blend=kind==="recommended"&&current.scene!==0?(current.scene===21?combCameraBlend(current.progress):assemblyCameraBlend(current.progress)):kind==="detail"?1:0;
    camera.position.copy(eyeWhole).lerp(eyeDetail,blend);controls.target.copy(targetWhole).lerp(targetDetail,blend);controls.update();
   }
   const gesture=()=>{autoCamera=false;setCameraMode("whole");};controls.addEventListener("start",gesture);
@@ -881,13 +969,13 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    // Use real elapsed playback time so a slower GPU does not stretch an
    // eight-second lesson. Hidden scenes reset previousTime in update().
    const dt=previousTime?Math.max((time-previousTime)/1000,0):0;previousTime=time;
-   if(current.playing&&current.step!==0){
+   if(current.playing&&current.scene!==0&&sceneReady){
     current.progress=Math.min(1,current.progress+dt*current.speed/duration);apply();
     if(time-reportTime>90||current.progress===1){callbacks.current.setProgress(current.progress);reportTime=time;}
     if(current.progress===1){current.playing=false;callbacks.current.setPlaying(false);}
    }
-   if(autoCamera&&current.step!==0){
-    const close=assemblyCameraBlend(current.progress);
+   if(autoCamera&&current.scene!==0){
+    const close=current.scene===21?combCameraBlend(current.progress):assemblyCameraBlend(current.progress);
     // The same paused or scrubbed time produces the same recommended camera
     // pose, instead of a frame-rate-dependent trailing interpolation.
     camera.position.copy(eyeWhole).lerp(eyeDetail,close);controls.target.copy(targetWhole).lerp(targetDetail,close);
@@ -928,6 +1016,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    if(changed){autoCamera=true;focusedId=null;cameraTargets();}
    const full=(current.step===0&&!next.partId)||current.step===7||current.step===9;
    if((isNewSequence()?[12,13,14,15,16].includes(current.scene):isRingRetainerStep()&&current.step!==5)||partRole(next.partId)==="temporary-clip")void loadTemporaryClip();
+   if(current.scene===21&&!next.partId)void loadCombUnits();
    if(full)void loadWhole();else if(currentRing!==next.ring)void loadRing(next.ring);
    updateReady();
    apply();
@@ -938,8 +1027,10 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    renderer.domElement.removeEventListener("pointerdown",pointerDown);renderer.domElement.removeEventListener("pointerup",pointerUp);renderer.domElement.removeEventListener("webglcontextlost",lost);
    for(const mesh of [magnetBody,magnetNorth,magnetSouth,glyphN,glyphS,wholeAcrylic])mesh.dispose();
    for(const mesh of [brackets,boltHeads,boltSockets])mesh.dispose();
+   for(const draw of mountingDraws)draw.mesh.dispose();
+   for(const draw of combUnitDraws)draw.dispose();
    for(const object of [...display,...wholeDisplay]){if(!ownedMaterial.has(object.mesh.material as THREE.Material))(object.mesh.material as THREE.Material).dispose();}
-   ownedGeometry.forEach(geometry=>geometry.dispose());ownedMaterial.forEach(material=>material.dispose());glyphTextures.forEach(texture=>texture.dispose());floor.geometry.dispose();(floor.material as THREE.Material).dispose();scene.environment=null;studioEnvironment?.dispose();key.shadow.dispose();renderer.dispose();renderer.domElement.remove();
+   rendererGeometry.dispose();ownedGeometry.forEach(geometry=>geometry.dispose());ownedMaterial.forEach(material=>material.dispose());glyphTextures.forEach(texture=>texture.dispose());floor.geometry.dispose();(floor.material as THREE.Material).dispose();scene.environment=null;studioEnvironment?.dispose();key.shadow.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();
   }};
   cameraTargets();resize();runtime.current.update(latest.current);
   return ()=>{runtime.current?.dispose();runtime.current=null;};
@@ -947,7 +1038,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
 
  const chooseView=(kind:"recommended"|"whole"|"detail")=>{setCameraMode(kind);runtime.current?.view(kind);};
  const phase=progress<assemblyTiming.orientationEnd?t("整体定位","Locate"):progress<assemblyTiming.inspectionEnd?t("接口特写","Inspect"):progress<assemblyTiming.finalCheckStart?t("动作演示","Move"):t("到位检查","Check");
- const part=partRole(partId),sequence=isAssemblySequenceStage(step)&&!part,pendingComb=sequence&&step===21,ringRetainerView=!part&&(sequence?step<=17:[4,5,10].includes(step)),schematic=sequence||[4,5,7,8,10].includes(step)||step===0&&(!part||["acrylic","rod","frame"].includes(part));
+ const part=partRole(partId),sequence=isAssemblySequenceStage(step)&&!part,combStep=sequence&&step===21,ringRetainerView=!part&&(sequence?step<=17:[4,5,10].includes(step)),schematic=sequence||[4,5,7,8,10].includes(step)||step===0&&(!part||["acrylic","rod","frame"].includes(part));
  const sequenceNotes:Record<number,string>={
   11:t("先将两片分段磁铁壳体沿卡扣导轨拼成半圆；此时不闭合整圈。展示行程用于看清接口，实物操作保持稳定支撑。","Join two segmented magnet housings along their mating guides to form one semicircle. Leave the circle open. Travel is enlarged to clarify the joint; support the parts during physical assembly."),
   12:t("按列装入磁铁，同时推进两片 2 mm 透明盖板，盖住刚装好的列后才释放夹持；不能先把全部磁铁装完再盖。按位置装上六个临时卡扣，持续约束透明盖板与底壳。","Load the magnet columns progressively, advancing the two 2 mm clear covers over each newly loaded column before releasing it. Do not load every magnet before covering. Fit six temporary clips progressively to retain the clear covers against the housing."),
@@ -956,10 +1047,10 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
   15:t("保持两半圆的磁铁受约束，沿共同接口方向将它们拼成整圈。中间盖板和外侧临时卡扣此时继续保留。","Keep both halves restrained and join them along the mating interface direction into a complete layer. Their central caps and outer temporary clips remain in place."),
   16:t("依次紧固剩余壳体盖板。每片盖板先接替约束，再退出对应的临时卡扣，最后落位并完成黄铜 M3 螺丝紧固；完成后回收全部卡扣。","Fasten the remaining housing caps in sequence. Each cap first takes over restraint, then the corresponding temporary clips are withdrawn, and finally the cap seats and its brass M3 screws are tightened. Recover every temporary clip."),
   17:t("将左、右框架安装支撑与缺口对齐后固定。使用当前 CAD 核对配合与紧固位置，安装完成后再把这一层放入框架。","Align and fasten the left and right frame mounting supports at their notches. Check the mating surfaces and fastening locations against the current CAD before mounting this layer in the frame."),
-  18:t("将已装好的磁体层装入预装铝型材框架，核对左右及底部支撑的接触与固定。型材截面与框架尺寸用于说明位置，制造规格以提供的零件为准。","Mount the prepared magnetic layer into the preassembled aluminum frame. Check the left, right and bottom support contacts and fixings. Displayed frame profiles explain positioning; use the supplied hardware for manufacturing dimensions."),
+  18:t("将已装好的磁体层放入框架，再把 T 型螺母滑入对应型材槽，沿支撑件现有孔轴装入连接螺栓并紧固。透视段用于看清螺栓、支撑与槽内螺母的配合；孔轴来自现有 CAD，紧固件外形、长度与规格为教学示意，以提供物料为准。","Seat the prepared layer in the frame, slide T-slot nuts into the matching extrusion channels, then insert and tighten bolts through the holders' existing holes. The transparent phase reveals how bolt, holder and nut fit together. Hole axes come from current CAD; hardware shapes, lengths and stock specifications are illustrative and must follow the supplied parts."),
   19:t("按 R01 → R14 安装全部十四层。每层 28 列，共 1,736 颗磁铁；各层径向位置和磁化方向按实际数据展示。此时不插入贯穿螺杆。","Mount all fourteen layers in R01 → R14 order: 28 columns per layer and 1,736 magnets total. Radial positions and magnetization follow the layer data. Keep the through-rods out until the next stage."),
   20:t("四根 M6 螺杆穿过前五层 R01–R05，另四根穿过后五层 R10–R14，中间四层不贯穿。32 个长 18 mm 圆柱隔块位于这两组内的八个层间，每处四个。轴线取自十四层实际 Ø6.2 mm CAD 通孔；杆长及端部余量为示意，切割长度待核定。","Four M6 rods pass through R01–R05 and another four through R10–R14, leaving the middle four layers clear. The 32 cylindrical 18 mm spacers occupy the eight gaps within these banks, four per gap. Axes follow the actual Ø6.2 mm CAD bores in all fourteen layers. Rod lengths and end allowances are illustrative; confirm cut lengths separately."),
-  21:t("梳状定位件设计尚未完成，待提供 CAD 后补充安装位置与动作。此处保留已完成磁体供观察；不演示虚构零件，也不将本步标为已验证完成。","The comb-like alignment devices are still being designed. Their locations and installation will be added when CAD is supplied. Inspect the assembled magnet here; no invented component or verified completion is shown.")
+  21:t("十三个层间各放置六个相同定位结构，上下半圆各三处，共 78 个。展示单元从所提供梳子 CAD 的原始端面轮廓派生，厚度 18 mm；不是把完整长梳重复 78 次，也不是新的制造 STEP。六处安装角度为避让支撑与框架调整，图示三角网格投影和径向装入路径已核对。轴向为名义面接触、零间隙；实际加工公差和固定方式仍需核对。","Fit six identical locating structures in each of thirteen inter-layer gaps, three in each semicircle: 78 total. Each displayed 18 mm unit derives from the supplied comb CAD end profile; it is not a whole long comb repeated 78 times or a new manufacturing STEP. Six positions are adjusted to avoid supports and frame; projected mesh geometry and radial approach paths have been checked. Axial faces nominally touch with zero clearance; manufacturing tolerances and retention still require verification.")
  };
  const note=sequence?sequenceNotes[step]:part==="locator"?t("层间隔块为长 18 mm 的中空圆柱，中间供 M6 螺杆通过。前五层和后五层各四个层间，每处四个，共 32 个；外径以实际打印文件为准。","The inter-layer spacer is an 18 mm hollow cylinder for an M6 rod. Four gaps in each five-layer end bank use four spacers each, 32 total. Use the supplied print file for the outside diameter."):
   part==="temporary-clip"||step===10?t("每片透明盖板使用 3 个临时卡扣，四片共 12 个。卡扣外形来自提供的 STEP，按整环规则位置展示；安装上盖时依次取下，完成后不留卡扣。具体卡点为教学示意。","Use 3 temporary clips per clear-cover quarter, 12 for the complete ring. The supplied STEP provides the clip shape; regular teaching positions show the sequence. Remove clips during cap installation and leave none in the finished assembly. Exact positions are illustrative."):
@@ -985,7 +1076,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
      <button type="button" aria-pressed={cameraMode==="whole"} onClick={()=>chooseView("whole")}><Box size={14}/>{t("整体","Whole")}</button>
      {step!==0&&<button type="button" aria-pressed={cameraMode==="detail"} onClick={()=>chooseView("detail")}><Scan size={14}/>{t("特写","Detail")}</button>}
     </div>
-    {step!==0&&<span className="assembly-stage__phase">{pendingComb?t("设计待补充","Design pending"):phase}</span>}
+    {step!==0&&<span className="assembly-stage__phase">{phase}</span>}
    </div>
   <div className="assembly-stage__canvas" ref={host} data-scene-ready={ready} data-webgl-error={error}>
    {step>0&&!sequence&&<button type="button" className="assembly-stage__hotspot" ref={hotspot} onClick={()=>chooseView("detail")} title={t("放大查看该接口","Inspect this interface closely")}><Focus size={12}/>{hotspots[step]}</button>}
@@ -993,7 +1084,8 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    {error&&<div className="assembly-stage__error"><Box size={28}/>{t("三维场景暂时无法显示，请查看右侧步骤与文件资料。","The 3D scene is unavailable. Assembly instructions and resources remain accessible.")}</div>}
   </div>
    {ringRetainerView&&<div className="assembly-stage__interface-status"><strong>{interfaceState}</strong><span>{t("实际零件 CAD · 卡扣位置与约束交接动作为教学示意","Actual part CAD · clip positions and restraint handover are illustrative")}</span>{step!==11&&<div><i data-material="clip"/>{t("临时卡扣","Temporary clip")}<i data-material="acrylic"/>{t("透明盖板 · 2 mm","Clear cover · 2 mm")}<i data-material="housing"/>{t("磁铁壳体与盖板","Housing and cap")}</div>}</div>}
-   {pendingComb&&<div className="assembly-stage__interface-status"><strong>{t("梳状定位件 · 等待设计文件","Comb-like alignment devices · design pending")}</strong><span>{t("CAD 完成后补充本步演示；当前可自由观察磁体。","Installation will be added when CAD is ready. The assembled magnet remains available for inspection.")}</span></div>}
+   {step===18&&!part&&<div className="assembly-stage__interface-status"><strong>{progress<.44?t("磁层与三个支撑接口到位","Seat the layer at all three support interfaces"):progress<.66?t("T 型螺母滑入铝型材槽","Slide T-slot nuts into the extrusion channels"):progress<.87?t("沿现有支撑孔装入连接螺栓","Insert bolts through the existing holder holes"):t("紧固支撑与框架连接","Tighten the holder-to-frame connections")}</strong><span>{t("孔轴依据实际 CAD；紧固件尺寸与工具按提供物料核对。","Hole axes follow actual CAD; check hardware sizes and tools against the supplied parts.")}</span></div>}
+   {combStep&&<div className="assembly-stage__interface-status"><strong>{t("13 个层间 × 6 个定位结构 = 78 个","13 gaps × 6 locating structures = 78")}</strong><span>{t("六处避让安装点，上下半圆各三处 · 源 CAD 轮廓派生的教学单元","Six clearance-adjusted positions, three per semicircle · teaching units derived from the source CAD profile")}</span></div>}
    {selected&&<div className="assembly-stage__selected"><b>{selected.id}</b>{selectedDirection} · {t("中心半径","Center radius")} {Math.round(selected.radius*25)} mm<br/>{t("N 极箭头表示磁化方向，不是该处合场方向。","The N arrow indicates magnetization, not the local resultant field.")}</div>}
    <div className="assembly-stage__callout">
     <details className="assembly-stage__note">
@@ -1005,9 +1097,9 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
     {(!part||part==="magnet")&&(step>=3||step===0)&&step!==11&&<div className="assembly-stage__legend"><span><i/>N</span><span><i data-pole="S"/>S</span>{t("磁极标识","Pole labels")}</div>}
    </div>
   <div className="assembly-stage__controls">
-   {step!==0&&!pendingComb&&<div className="assembly-stage__transport">
-    <button type="button" data-primary="true" onClick={()=>setPlaying(value=>!value)} aria-label={playing?t("暂停演示","Pause demonstration"):t("播放演示","Play demonstration")} disabled={error}>{playing?<Pause size={16}/>:<Play size={16}/>}</button>
-    <button type="button" onClick={()=>{setProgress(0);setPlaying(true);chooseView("recommended");}} aria-label={t("重播本步骤","Replay this step")} disabled={error}><RotateCcw size={15}/></button>
+   {step!==0&&<div className="assembly-stage__transport">
+    <button type="button" data-primary="true" onClick={()=>setPlaying(value=>!value)} aria-label={playing?t("暂停演示","Pause demonstration"):t("播放演示","Play demonstration")} disabled={error||loading||!ready}>{playing?<Pause size={16}/>:<Play size={16}/>}</button>
+    <button type="button" onClick={()=>{setProgress(0);setPlaying(true);chooseView("recommended");}} aria-label={t("重播本步骤","Replay this step")} disabled={error||loading||!ready}><RotateCcw size={15}/></button>
     <input type="range" min={0} max={1} step={.001} value={progress} onChange={event=>{setPlaying(false);setProgress(Number(event.target.value));}} aria-label={t("装配演示进度","Assembly demonstration progress")}/>
     <span className="assembly-stage__time">{(progress*duration).toFixed(1)} / {duration}s</span>
     <select value={speed} onChange={event=>setSpeed(Number(event.target.value))} aria-label={t("播放速度","Playback speed")}><option value={.5}>0.5×</option><option value={1}>1×</option></select>
@@ -1015,8 +1107,8 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    <div className="assembly-stage__options">
     <button type="button" aria-pressed={highlight} onClick={()=>setHighlight(value=>!value)}><Lightbulb size={12}/>{t("零件高亮","Highlight")}</button>
     <button type="button" aria-pressed={transparent} onClick={()=>setTransparent(value=>!value)}><Eye size={12}/>{t("局部透明","Transparent")}</button>
-    {!ringRetainerView&&<button type="button" aria-pressed={cutaway} onClick={()=>setCutaway(value=>!value)}><Scissors size={12}/>{t("剖视","Cutaway")}</button>}
-    {!ringRetainerView&&<button type="button" aria-pressed={exploded} onClick={()=>setExploded(value=>!value)}><Layers size={12}/>{t("展开","Explode")}</button>}
+    {!ringRetainerView&&!combStep&&<button type="button" aria-pressed={cutaway} onClick={()=>setCutaway(value=>!value)}><Scissors size={12}/>{t("剖视","Cutaway")}</button>}
+    {!ringRetainerView&&!combStep&&<button type="button" aria-pressed={exploded} onClick={()=>setExploded(value=>!value)}><Layers size={12}/>{t("展开","Explode")}</button>}
    </div>
   </div>
  </div>;

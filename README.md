@@ -2,31 +2,28 @@
 
 教学版将网站分为整体总览、材料清单、分步装配、原理与实验、文件资料五个板块。装配主体为新版 14 层、28 列、1,736 颗 12 mm 方块磁铁。CAD 网格来自提供的 STEP，磁铁位置与方向来自 MATLAB 数据。
 
-This teaching edition has five sections: Overview, BOM, Assembly, Principles & Lab, and Resources. Its baseline is the new 14-ring, 28-column assembly with 1,736 separate 12 mm cubes. Mechanical meshes come from supplied STEP files; magnet positions and directions come from the MATLAB data.
+This teaching edition has five sections: Overview, BOM, Assembly, Principles & Lab, and Resources. Its baseline is the new 14-layer, 28-column assembly with 1,736 separate 12 mm cubes. Mechanical meshes come from supplied STEP files; magnet positions and directions come from the MATLAB data.
 
-当前装配流程为先分别完成两个半圆，再合并整层、固定左右支撑、装入框架并安装十四层，最后装入两组螺杆与隔块；第 11 步梳状定位器等待设计文件。M3 螺丝用于壳体盖板、透明盖板与磁铁壳体，M6 用于层间连接。材料清单包含 14 类物料（含可复用临时卡扣工装），每项列出材料及配图，包括 N52 钕铁硼磁铁、L 型角码、铝型材连接螺栓和 T 型槽螺母。模型下载只提供最终的 Final_1.3mf–Final_4.3mf；旧 STEP 和打印文件的网页发布副本已撤下，现有装配场景保留原 CAD 来源记录与 GLB。七份 MATLAB 程序原样保留，教学下载入口标为待更新。
+当前装配流程先分别完成两个半圆，再合并整层、固定左右支撑、装入框架并安装十四层。第 8 步明确演示支撑、铝型材 T 型槽螺母与连接螺栓的紧固；第 10 步安装两组螺杆与隔块。第 11 步采用用户提供的梳状件轮廓，在 13 个层间间隙分别展示 6 处相同定位结构，上下半圆各 3 处，共 78 处。材料清单包含 15 类物料，每项有材料说明与配图。原始梳状 CAD 含四槽、五槽两种长轮廓，网页重复定位单元与原始长轮廓明确区分，不能把 78 处定位结构理解为 78 根长梳状件。
 
-The eleven-stage process first completes two retained semicircles, then joins each layer, fits its side supports, mounts all fourteen layers, and inserts two rod banks with spacers. The final comb-alignment stage awaits its design files. M3 screws secure the housing cap, clear cover and magnet housing; M6 is used between layers. The 14-category BOM, including the reusable temporary clip, includes material descriptions and images, N52 grade NdFeB magnets, L-brackets, extrusion mounting bolts and T-slot nuts. Model downloads contain only Final_1.3mf–Final_4.3mf. Old STEP and print download copies have been withdrawn; the existing lesson retains its CAD provenance and GLB geometry. All seven MATLAB programs remain unchanged; their teaching download entry is pending update.
+The eleven-stage process first completes two retained semicircles, then joins and supports each layer. Stage 8 explicitly bolts the holders to the aluminium frame using the supplied mounting bolts and T-slot nuts. Stage 10 installs the two rod banks and spacers. Stage 11 repeats the supplied comb profile as six identical locating units in each of the thirteen layer gaps, three on each semicircle: 78 locating units in total. The 15-category BOM includes materials and images. The supplied comb CAD contains four-slot and five-slot profiles; these source profiles are distinguished from the repeated locating units, so the count does not mean 78 long combs.
 
-| 最终文件 / Final file | 预计打印时间 / Estimated print time |
+| CAD 文件 / CAD file | 内容 / Contents |
 | --- | --- |
-| Final_1.3mf | 5天19小时18分钟 / 5d 19h 18min |
-| Final_2.3mf | 3天17小时39分钟 / 3d 17h 39min |
-| Final_3.3mf | 1天13小时49分钟 / 1d 13h 49min |
-| Final_4.3mf | 19小时29分钟 / 19h 29min |
-| **整套总计 / Complete total** | **11天22小时15分钟 / 11d 22h 15min（286小时15分钟 / 286h 15min）** |
+| [Final.step](public/resources/Final.step) | 用户提供的整机装配 CAD / Supplied assembly CAD |
+| [comb-device.step](public/resources/comb-device.step) | 独立梳状定位件源轮廓 CAD / Separate comb source-profile CAD |
 
-预计时间由用户提供；四份文件构成完整打印包，未推断单份文件与 BOM 零件的对应关系。原始工程目录不受下载清理影响。
+文件资料已用两份 STEP 替代打印文件下载，参赛者可自行从 CAD 准备打印。两份文件保持提供时的原始字节，Final.step 未被宣称已包含后来单独提供的梳状件。七份原有 MATLAB 程序与求场模型保持不变；新 MATLAB 教学文件仍标为待更新。原始工程目录不受网页下载清理影响。
 
-Estimates were supplied by the user. The four files form the complete print package; no per-file BOM allocation has been inferred. Download cleanup does not alter the original engineering directory.
+Resources now offers these two STEP downloads instead of print batches, allowing participants to prepare their own prints. The supplied files are byte-for-byte unchanged; Final.step is not claimed to include the separately supplied comb. Existing MATLAB programs and field models are retained, with updated teaching files still pending. Download cleanup does not alter the original engineering directory. See [the frame and comb update](docs/assembly-frame-comb-2026-11-04.md).
 
 每台最新确认的物料数量：分段磁铁壳体、壳体盖板、透明盖板各 56 件（4 × 14）；框架安装支撑 42 件（左右 28 件，底部 14 件）；圆柱层间隔块 32 件（4 × 8）；贯穿螺杆 8 根；M3 短螺丝 448 个（32 × 14）；M6 螺母 8 个。L 型角码 20 个、铝型材框架 1 套、T 型槽螺母 112 个和型材连接螺栓 112 个由官方提供。M3 螺丝、M6 螺杆与 M6 螺母为黄铜；透明盖板厚 2 mm，孔位 DXF 尚未完成。前五层与后五层分别使用 4 根螺杆。新隔块 STEP 的名义尺寸为长 18 mm、外径 14 mm、通孔 6.2 mm，实际配合公差与安装位置仍需核对。
 
 Confirmed quantities per unit: 56 segmented magnet housings, 56 housing caps and 56 clear covers (4 × 14 each); 42 frame supports (28 side, 14 bottom); 32 cylindrical inter-layer spacers (4 × 8); 8 through-rods; 448 M3 short screws (32 × 14); and 8 M6 nuts. L-brackets, the aluminium frame, T-slot nuts and extrusion mounting bolts are supplied by the organizers. The new spacer STEP defines an 18 mm length, 14 mm outer diameter and 6.2 mm through-hole; verify actual tolerances and installed locations separately.
 
-BOM 的左右支撑、底部支撑和圆柱隔块采用新提供的独立 STEP 示意图与可旋转模型。其余零件统一为白色背景立体示意；壳体与盖板保留真实 CAD 几何，欧式 T 型槽螺母外形按用户参考图绘制。页首 logo 使用透明背景；首页大标题上方提供活动官网入口。新增亚克力临时固定卡扣：完整圆环的四块亚克力各用三个卡扣，共十二个，先盖亚克力并卡紧，安装上盖时保持约束并取下卡扣，最后锁紧 M3。详见 [临时卡扣装配说明](docs/temporary-acrylic-retainer.md)。十个装配阶段在 1× 下均为 8 秒，主要动作约从 0.44 秒开始，使用参考 Apple Core Animation 的加减速曲线；机械路径保持原样，动作无回弹越位。
+BOM 的左右支撑、底部支撑和圆柱隔块采用新提供的独立 STEP 示意图与可旋转模型。其余零件统一为白色背景立体示意；壳体与盖板保留真实 CAD 几何，欧式 T 型槽螺母外形按用户参考图绘制。页首 logo 使用透明背景；首页大标题上方提供活动官网入口。完整圆环的四块亚克力各用三个临时卡扣，共十二个，盖板接替约束后回收卡扣。详见 [临时卡扣装配说明](docs/temporary-acrylic-retainer.md)。十一个装配阶段在 1× 下均为 8 秒，使用参考 Apple Core Animation 的加减速曲线；模型尚未就绪时不开始播放。
 
-BOM side supports, bottom supports and cylindrical spacers use the supplied standalone STEP previews and interactive models. Other parts share white-studio product illustrations; housing/cap images retain actual CAD geometry, and the European-style T-slot nut follows the supplied picture. The header logo has a transparent background, with a prominent event-website link above the overview headline. The full-ring temporary acrylic-retainer lesson uses four acrylic quarters and three clips per quarter (twelve reusable clips), maintaining restraint while fitting the cap and removing the clip, then securing M3 screws. See [the retainer assembly notes](docs/temporary-acrylic-retainer.md). All ten assembly stages run for 8 seconds at 1×, with primary motion starting around 0.44 seconds. Apple Core Animation-inspired easing changes speed along the existing mechanical paths without spring overshoot.
+BOM side supports, bottom supports and cylindrical spacers use the supplied standalone STEP previews and interactive models. Other parts share white-studio product illustrations; housing/cap images retain actual CAD geometry, and the European-style T-slot nut follows the supplied picture. The header logo has a transparent background, with a prominent event-website link above the overview headline. The acrylic-retainer lesson uses four quarters and three clips per quarter, recovering the twelve reusable clips as the caps take over restraint. All eleven stages run for 8 seconds at 1× with Apple Core Animation-inspired easing. Playback waits for the current model to be ready.
 
 公开网页沿用下方链接。运行本地版请使用 `npm.cmd run dev`（Windows PowerShell），打开终端显示的本地地址。详细说明见 [教学版本地预览说明.txt](教学版本地预览说明.txt)、[CAD 核对记录](docs/cad-audit.md) 和 [教学版性能检查](docs/teaching-performance.md)。
 

@@ -6,6 +6,7 @@ import bomCADAssets from "./bom-cad-assets.json" with { type: "json" };
 import bomProductAssets from "./bom-product-assets.json" with { type: "json" };
 import { CLEAR_COVER_QUARTERS, CLIPS_PER_QUARTER, TEMPORARY_CLIP_COUNT } from "./assembly-ring-retainers.ts";
 import acrylicClipAsset from "./acrylic-clip-asset.json" with { type: "json" };
+import combAlignmentAsset from "./comb-alignment-asset.json" with { type: "json" };
 
 export type Bilingual = { zh: string; en: string };
 export type PartCategory = "magnet" | "printed" | "structure" | "fastener";
@@ -41,7 +42,7 @@ export interface BOMCADView {
   modelURL: string;
   imageURL: string;
   sourceName: string;
-  kind?: "cad" | "product";
+  kind?: "cad" | "product" | "derived";
 }
 export interface TeachingPart {
   id: string;
@@ -81,13 +82,8 @@ export const TEACHING_STORAGE = {
 } as const;
 export const TEACHING_BOM_SCOPE = text("一套完整的 14 层磁体阵列", "One complete 14-layer magnet array");
 export const teachingResources: TeachingResource[] = (resources as TeachingResource[]).map(normalizeTeachingResource);
-export const finalPrintFiles = teachingResources.filter(resource => resource.category === "print" && resource.updateStatus === "current");
-export const totalPrintMinutes = finalPrintFiles.reduce((sum, resource) => sum + (resource.estimatedPrintMinutes ?? 0), 0);
-export const printEstimatePending = finalPrintFiles.some(resource => typeof resource.estimatedPrintMinutes !== "number");
-export function formatPrintDuration(minutes:number, language:"zh"|"en", asHours=false):string {
-  const days=asHours?0:Math.floor(minutes/1440),hours=asHours?Math.floor(minutes/60):Math.floor(minutes%1440/60),remainder=minutes%60;
-  return language==="zh" ? `${days?days+"天":""}${hours?hours+"小时":""}${remainder}分钟` : `${days?days+"d ":""}${hours?hours+"h ":""}${remainder}min`;
-}
+export const assemblyCADFiles = teachingResources.filter(resource => resource.category === "cad" && resource.visibility === "resources" && resource.updateStatus === "current" && resource.downloadAvailable !== false);
+export const completeAssemblyCAD = assemblyCADFiles.find(resource => resource.id === "assembly-final-step");
 
 // All teaching quantities come from the fixed latest configuration. Lab edits
 // are independent and cannot change the procurement or assembly baseline.
@@ -563,6 +559,15 @@ export const teachingParts: TeachingPart[] = [
     "stepIds": [
       "step-18"
     ]
+  },
+  {
+    id: "comb-alignment", name: text("层间定位结构（梳齿单元）", "Inter-layer alignment structures (tooth units)"), category: "printed", quantity: 78,
+    quantityBreakdown: text("13 个层间间隙 × 6 个；每处上半圆 3 个、下半圆 3 个", "13 inter-layer gaps × 6 units; 3 on each upper and lower semicircle per gap"),
+    unit: text("个 / 完整阵列", "units / array"),
+    specification: text("统一造型；每个层间分布 6 个，上下半圆各 3 个，共 78 个", "One repeated shape; 6 units per layer gap, 3 on each semicircle, 78 in total"),
+    material: text("待确认", "To confirm"),
+    note: text("用户确认 14 层的 13 个相邻层间，每处使用 6 个同形定位单元，共 78 个；上、下半圆各 3 个。演示采用源 CAD 的 18 mm 齿形制作单元，需检查与周围零件的间隙。下载的 comb-device.step 仍是 4 槽（170 mm）和 5 槽（208 mm）两种长梳形源模型，并非 78 个单元的独立制造文件。材料和固定规格待确认。", "The confirmed arrangement uses 6 identical alignment units in each of the 13 gaps between 14 layers: 78 units total, with 3 on each upper and lower semicircle. The demonstration derives a unit from the source CAD's 18 mm tooth shape; check clearance to nearby parts. The downloaded comb-device.step remains the 4-slot (170 mm) and 5-slot (208 mm) source profiles, not a standalone manufacturing file for 78 units. Material and attachment specifications remain to be confirmed."),
+    assetIds: ["comb-device-step"], stepIds: ["step-21"],
   }
 ];
 
@@ -612,6 +617,12 @@ spacerPart.cadViews = [cadView("spacer", text("层间隔块", "Inter-layer space
 spacerPart.image = { src: spacerPart.cadViews[0].imageURL, alt: text("层间隔块.step 生成的 18 mm 圆柱形隔块渲染图", "18 mm cylindrical spacer rendered from the supplied 层间隔块.step"), kind: "cad-render" };
 const acrylicClipPart = teachingParts.find(part => part.id === "acrylic-clip")!;
 acrylicClipPart.cadViews = [{ id: "acrylic-clip", label: acrylicClipPart.name, quantity: TEMPORARY_CLIP_COUNT, modelURL: acrylicClipAsset.url, imageURL: acrylicClipAsset.thumbnail.url, sourceName: acrylicClipAsset.sourceFilename }];
+const combAlignmentPart = teachingParts.find(part => part.id === "comb-alignment")!;
+combAlignmentPart.image = { src: `${combAlignmentAsset.derivedUnit.thumbnail.url}?v=${combAlignmentAsset.derivedUnit.thumbnail.sha256}`, alt: text("依据源 CAD 齿形生成的层间定位单元示意图", "Inter-layer alignment unit illustrated from the source CAD tooth shape"), kind: "illustration", caption: text("根据源 CAD 制作的教学单元；共 78 个，非独立制造 CAD。材料待确认。", "Teaching unit derived from source CAD; 78 in total, not standalone manufacturing CAD. Material remains to be confirmed.") };
+combAlignmentPart.cadViews = [
+  { id: "comb-alignment-unit", label: text("定位单元示意", "Alignment unit"), quantity: 78, modelURL: `${combAlignmentAsset.derivedUnit.modelURL}?v=${combAlignmentAsset.derivedUnit.sha256}`, imageURL: combAlignmentPart.image.src, sourceName: "comb-device.step · teaching derivative", kind: "derived" },
+  { id: "comb-source-profiles", label: text("源 CAD 长梳形", "Source comb profiles"), quantity: null, modelURL: `${combAlignmentAsset.url}?v=${combAlignmentAsset.sha256}`, imageURL: `${combAlignmentAsset.thumbnail.url}?v=${combAlignmentAsset.thumbnail.sha256}`, sourceName: combAlignmentAsset.sourceFilename, kind: "cad" },
+];
 acrylicClipPart.image = { src: acrylicClipAsset.thumbnail.url, alt: text("提供的用于固定亚克力卡扣.step 生成的临时固定卡扣渲染图", "Temporary acrylic retaining clip rendered from the supplied STEP"), kind: "cad-render", caption: text("卡扣外形来自提供的 STEP；安装位置和运动为教学示意，实际夹持配合需实物核对。", "Clip geometry comes from the supplied STEP; placement and motion are instructional illustrations. Verify physical clamping fit on the real parts.") };
 
 export const teachingSteps: TeachingStep[] = [
@@ -667,9 +678,9 @@ export const teachingSteps: TeachingStep[] = [
   {
     id: "step-18", index: 8, sceneStep: 18, title: text("放入铝型材框架", "Mount the layer in the frame"),
     summary: text("将完成盖板与支撑紧固的磁层安装到预装框架。", "Mount the capped layer with its fastened supports in the prepared frame."),
-    action: [text("检查预装框架、20 个 L 型角码以及配套连接螺栓和 T 型槽螺母。", "Check the prepared frame, its 20 L-brackets and the supplied mounting bolts and T-slot nuts."), text("对齐左右及底部支撑与框架接口，定位并固定当前磁层。", "Align the side and lower supports with the frame interfaces, then position and secure the selected layer.")],
-    checks: [{ id: "step-18-check-1-v4", text: text("三处支撑与框架对应、当前磁层固定可靠，孔轴方向正确。", "All three support interfaces match the frame, the layer is secure and through-hole axes are correctly oriented.") }],
-    note: text("每套完整阵列由官方提供 1 套框架、20 个角码、112 个连接螺栓和 112 个 T 型槽螺母。图中框架展示安装关系，型材切割及连接规格以提供文件为准。", "The organizers supply one frame, 20 brackets, 112 mounting bolts and 112 T-slot nuts per complete array. The displayed frame explains mounting relationships; use the supplied files for profile cuts and connection specifications."), partIds: ["aluminum-frame","frame-l-bracket","extrusion-bolt","t-slot-nut","ring-support"],
+    action: [text("检查预装框架、20 个 L 型角码以及配套连接螺栓和 T 型槽螺母。", "Check the prepared frame, its 20 L-brackets and the supplied mounting bolts and T-slot nuts."), text("对齐左右及底部支撑与框架接口，将配套 T 型槽螺母定位在铝型材槽内。", "Align the side and lower supports with the frame interfaces, then position the matching T-slot nuts in the extrusion slots."), text("让连接螺栓穿过支撑安装孔并与槽内螺母啮合；按实际连接设计逐处紧固，使支撑固定在框架上。", "Pass the mounting bolts through the support holes and engage the nuts inside the slots. Tighten each connection according to the actual joint design so the supports are secured to the frame.")],
+    checks: [{ id: "step-18-interface-check-v5", text: text("左右及底部支撑与框架接口对应，磁层位置和朝向正确。", "The side and lower support interfaces match the frame, with the layer correctly positioned and oriented.") }, { id: "step-18-bolting-check-v5", text: text("支撑与铝型材之间的螺栓及 T 型槽螺母已正确啮合并紧固。", "The support-to-extrusion bolts and T-slot nuts are correctly engaged and tightened.") }],
+    note: text("每套完整阵列由官方提供 1 套框架、20 个角码、112 个连接螺栓和 112 个 T 型槽螺母。支撑需要完成螺栓连接。螺纹、长度、头型与紧固要求按提供物料核对；图中框架用于说明安装关系。", "The organizers supply one frame, 20 brackets, 112 mounting bolts and 112 T-slot nuts per complete array. Complete the bolted support connections. Verify thread, length, head type and fastening requirements against the supplied hardware; the displayed frame explains the mounting relationships."), partIds: ["aluminum-frame","frame-l-bracket","extrusion-bolt","t-slot-nut","ring-support"],
   },
   {
     id: "step-19", index: 9, sceneStep: 19, title: text("安装全部十四层", "Mount all fourteen layers"),
@@ -686,11 +697,11 @@ export const teachingSteps: TeachingStep[] = [
     note: text("8 根螺杆分前后两组，不是一组长杆贯穿全部十四层。杆长、端部配置和紧固要求按提供的机械设计核对。26 mm 是磁铁端面净距，18 mm 是隔块长度。", "The 8 rods form separate front and rear groups rather than traversing all fourteen layers. Verify rod lengths, end hardware and fastening requirements against the supplied mechanical design. The magnet-face gap is 26 mm; spacer length is 18 mm."), partIds: ["through-rod","locator","m6-nut"],
   },
   {
-    id: "step-21", index: 11, sceneStep: 21, status: "pending-design", title: text("梳状对齐件：等待设计文件", "Comb-like alignment devices: design pending"),
-    summary: text("最终需要梳状对齐件；模型尚未完成，此阶段暂作设计准备。", "Comb-like alignment devices are required at the end; their unfinished model leaves this stage pending design."),
-    action: [text("记录梳状对齐件与已装十四层的配合位置，等待定版模型和安装说明。", "Record where the comb-like devices will mate with the assembled fourteen layers and await the final model and installation instructions."), text("模型与尺寸确认后再展示和执行安装；当前不提供虚构模型或制造尺寸。", "Show and perform installation after the model and dimensions are confirmed; no invented model or manufacturing dimensions are supplied.")],
-    checks: [{ id: "step-21-check-1-v4", text: text("已识别此阶段等待设计文件，未将待设计状态记作实物安装完成。", "This stage is recognized as awaiting design files and has not been marked as physically installed.") }],
-    note: text("用户确认梳状对齐件模型与 DXF 尚未完成。收到并核对文件后，再补充模型、零件数量、安装路径与完成检查。当前清单不增加未经确认的梳状件数量。", "The user confirmed that the comb-like device model and DXF are not complete. Add the model, quantity, installation path and completion checks after receiving and reviewing the files. No unconfirmed comb-device quantity is added to the BOM."), partIds: ["printed-ring"],
+    id: "step-21", index: 11, sceneStep: 21, title: text("安装梳状对齐件", "Fit the comb alignment devices"),
+    summary: text("在 13 个相邻层间分别均布 6 个相同定位单元，上、下半圆各 3 个，共 78 个。", "Fit 6 identical alignment units in each of the 13 adjacent-layer gaps, 3 on each semicircle, for 78 units in total."),
+    action: [text("按 R01／R02 至 R13／R14 核对全部 13 个层间间隙，辨认同形定位单元及配合方向。", "Identify all 13 gaps, from R01/R02 through R13/R14, and check the repeated alignment-unit shape and mating direction."), text("每个间隙采用六处避让安装点，上半圆 3 个、下半圆 3 个；避开支撑和框架，对齐后按配合方向装入。", "Use six clearance-adjusted positions per gap, 3 on each semicircle. Keep clear of the supports and frame, align the units and fit along the mating direction."), text("逐处检查单元与磁层、支撑、盖板及螺杆之间的间隙，再按实际机械设计完成定位或固定。", "Check clearance to the layers, supports, caps and rods at every location, then complete positioning or attachment according to the actual mechanical design.")],
+    checks: [{ id: "step-21-fit-check-v5", text: text("13 个层间各有 6 个同形单元，每处上、下半圆各 3 个，共 78 个。", "Each of the 13 gaps has 6 identical units, 3 per semicircle, giving 78 units in total.") }, { id: "step-21-attachment-check-v5", text: text("单元已按实物设计定位或固定，与各层及周围零件无干涉，间隙已检查。", "The units are positioned or attached according to the physical design, with interference and clearance checked against the layers and nearby parts.") }],
+    note: text("数量与分布由用户确认。单元演示以提供的梳状源 CAD 为依据；安装位置为教学排布，实物配合及固定规格仍需核对。独立下载的源文件保留原始 4 槽、5 槽长梳形，不能将其组件数量当作这 78 个单元的制造清单。完成实物检查后手动标记本步；亚克力加工 DXF 更新与此独立。", "Quantity and distribution are confirmed. The unit demonstration is based on the supplied comb source CAD; mounting positions illustrate the arrangement, while physical fit and attachment specifications still need checking. The separate source download retains the original 4-slot and 5-slot profiles; their component count is not a manufacturing list for these 78 units. Mark the stage complete after physical inspection. The acrylic-machining DXF update remains separate."), partIds: ["comb-alignment"],
   }
 ];
 export const TEACHING_STAGE_COUNT = teachingSteps.length;
@@ -702,22 +713,25 @@ export interface TeachingProgress {
   schemaVersion: 1;
   tutorialId: typeof TEACHING_ID;
   currentStep: number;
-  stepOrderVersion?: 2 | 3 | 4;
+  stepOrderVersion?: 2 | 3 | 4 | 5;
   currentRing: number;
   completedStepIds: string[];
 }
-export const initialProgress = (): TeachingProgress => ({ schemaVersion: 1, tutorialId: TEACHING_ID, currentStep: 1, stepOrderVersion: 4, currentRing: 1, completedStepIds: [] });
+export const initialProgress = (): TeachingProgress => ({ schemaVersion: 1, tutorialId: TEACHING_ID, currentStep: 1, stepOrderVersion: 5, currentRing: 1, completedStepIds: [] });
 export function validateProgress(value: unknown): TeachingProgress | null {
   if (!value || typeof value !== "object") return null;
   const doc = value as Record<string, unknown>;
   if (doc.schemaVersion !== TEACHING_VERSION || doc.tutorialId !== TEACHING_ID || !Array.isArray(doc.completedStepIds)) return null;
-  const currentOrder = doc.stepOrderVersion === 4;
+  const currentOrder = doc.stepOrderVersion === 4 || doc.stepOrderVersion === 5;
+  const currentChecks = doc.stepOrderVersion === 5;
   const currentStep = currentOrder && typeof doc.currentStep === "number" && Number.isInteger(doc.currentStep) && doc.currentStep >= 1 && doc.currentStep <= TEACHING_STAGE_COUNT ? doc.currentStep : 1;
   // The semicircle-first process is materially different. Keep the selected
   // layer, but require participants with an older lesson to review it from
   // stage 1 rather than treating old full-layer checks as new completions.
-  const completedStepIds = currentOrder ? [...new Set(doc.completedStepIds.filter((id): id is string => typeof id === "string" && stepById.has(id) && stepById.get(id)?.status !== "pending-design"))] : [];
-  return { schemaVersion: 1, tutorialId: TEACHING_ID, currentStep, stepOrderVersion: 4, currentRing: typeof doc.currentRing === "number" && Number.isInteger(doc.currentRing) && doc.currentRing >= 1 && doc.currentRing <= 14 ? doc.currentRing : 1, completedStepIds };
+  // The v5 lesson keeps that order but requires a new inspection for frame
+  // bolting and comb installation while preserving all unrelated stages.
+  const completedStepIds = currentOrder ? [...new Set(doc.completedStepIds.filter((id): id is string => typeof id === "string" && stepById.has(id) && stepById.get(id)?.status !== "pending-design" && (currentChecks || (id !== "step-18" && id !== "step-21"))))] : [];
+  return { schemaVersion: 1, tutorialId: TEACHING_ID, currentStep, stepOrderVersion: 5, currentRing: typeof doc.currentRing === "number" && Number.isInteger(doc.currentRing) && doc.currentRing >= 1 && doc.currentRing <= 14 ? doc.currentRing : 1, completedStepIds };
 }
 export function validateStoredIds(value: unknown, allowed: Set<string>): string[] | null {
   if (!value || typeof value !== "object") return null;

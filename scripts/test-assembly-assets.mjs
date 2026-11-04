@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { models } from '../lib/mri.ts';
-import { bomCSV, teachingParts, teachingSteps, finalPrintFiles, totalPrintMinutes, printEstimatePending, formatPrintDuration } from '../lib/teaching.ts';
+import { bomCSV, teachingParts, teachingSteps, assemblyCADFiles } from '../lib/teaching.ts';
 import { CLEAR_COVER_QUARTERS, CLIPS_PER_QUARTER, TEMPORARY_CLIP_COUNT, RETAINER_LOCATIONS, ringCapQuarterProgress, ringClipArrival } from '../lib/assembly-ring-retainers.ts';
 
 const project=path.resolve(import.meta.dirname,'..');
@@ -23,7 +23,7 @@ assert.equal(manifest.layers.length,14);
 const resourceIDs=new Set(manifest.resources.map(r=>r.id));assert.equal(resourceIDs.size,manifest.resources.length);
 assert.deepEqual(manifest.resources,JSON.parse(fs.readFileSync(path.join(project,'lib/teaching-resources.json'),'utf8')),'CAD and teaching resource catalogs differ');
 const partIDs=new Set(teachingParts.map(p=>p.id)),stepIDs=new Set(teachingSteps.map(s=>s.id));
-assert.equal(teachingParts.length,14,'The reference BOM includes thirteen components and one temporary acrylic-clip tool');
+assert.equal(teachingParts.length,15,'The BOM also includes the supplied comb alignment variants');
 const clipPart=teachingParts.find(part=>part.id==='acrylic-clip');
 assert.equal(clipPart.quantity,12,'Four acrylic quarters each use three reusable temporary clips');
 assert.match(clipPart.material.en,/to confirm/);
@@ -48,7 +48,10 @@ assert.deepEqual(teachingSteps.map(step=>step.index),Array.from({length:11},(_,i
 assert.ok(teachingSteps.find(step=>step.id==='step-12').partIds.includes('acrylic-clip'));
 assert.ok(teachingSteps.find(step=>step.id==='step-13').partIds.includes('short-screw'));
 assert.ok(!teachingSteps.find(step=>step.id==='step-12').partIds.includes('ring-cover'),'Load with acrylic restraint before installing central caps');
-assert.equal(teachingSteps.at(-1).status,'pending-design','The unfinished comb CAD must not be presented as a completed design');
+assert.equal(teachingSteps.at(-1).status,undefined,'The supplied comb CAD has an active manual inspection stage');
+assert.deepEqual(teachingSteps.at(-1).partIds,['comb-alignment']);
+assert.ok(teachingSteps.find(step=>step.id==='step-18').checks.some(check=>check.id==='step-18-bolting-check-v5'),'Frame mounting must explicitly check bolted attachment');
+const combPart=teachingParts.find(part=>part.id==='comb-alignment');assert.equal(combPart.quantity,78,'Thirteen gaps each use six identical alignment units');assert.match(combPart.quantityBreakdown.en,/13.*6/);assert.equal(combPart.material.en,'To confirm');assert.ok(combPart.cadViews.some(view=>view.sourceName.includes('comb-device.step')));
 assert.ok(!partIDs.has('m3-nut'),'M3 nuts are not used in the assembly');
 assert.ok(partIDs.has('extrusion-bolt')&&partIDs.has('t-slot-nut'),'Extrusion connection hardware is required');
 assert.ok(teachingParts.every(part=>part.material.zh.trim()&&part.material.en.trim()),'Every BOM part needs a bilingual material');
@@ -61,11 +64,11 @@ assert.match(teachingParts.find(part=>part.id==='acrylic').specification.en,/2 m
 for(const id of ['magnet-cube','acrylic','through-rod','short-screw','m6-nut'])assert.equal(teachingParts.find(part=>part.id===id).cadViews[0].kind,'product','The product image and 3D model must match');
 assert.match(teachingParts.find(part=>part.id==='locator').specification.en,/18 mm.*M6/);assert.match(teachingParts.find(part=>part.id==='locator').note.en,/cylindrical/i);
 for(const language of ['zh','en']){
- const csv=bomCSV(language);assert.equal(csv.split('\r\n').length,15);assert.ok(!/Receipt checked|收料/.test(csv));assert.ok(csv.split('\r\n')[0].includes(language==='en'?'Material':'材料'));assert.ok(csv.split('\r\n')[0].includes(language==='en'?'Quantity breakdown':'数量构成'));assert.ok(csv.split('\r\n')[0].includes(language==='en'?'Supply':'供应方式'));
+ const csv=bomCSV(language);assert.equal(csv.split('\r\n').length,16);assert.ok(!/Receipt checked|收料/.test(csv));assert.ok(csv.split('\r\n')[0].includes(language==='en'?'Material':'材料'));assert.ok(csv.split('\r\n')[0].includes(language==='en'?'Quantity breakdown':'数量构成'));assert.ok(csv.split('\r\n')[0].includes(language==='en'?'Supply':'供应方式'));
  const row=id=>csv.split('\r\n').find(line=>line.startsWith(`"${id}",`));assert.ok(row('short-screw').includes('"448"'));assert.ok(row('locator').includes('"32"'));assert.ok(row('ring-support').includes('"42"'));for(const id of ['frame-l-bracket','aluminum-frame','extrusion-bolt','t-slot-nut'])assert.ok(row(id).includes(language==='en'?'Provided by organizers':'官方提供'));
 }
 const visibleResources=manifest.resources.filter(resource=>resource.visibility==='resources'&&resource.updateStatus==='current');
-assert.equal(visibleResources.length,13,'Only the four final print files and unchanged layout references appear in Resources');
+assert.equal(visibleResources.length,11,'Two supplied CAD files replace the four print files; layout references are unchanged');
 assert.equal(manifest.resources.filter(resource=>resource.visibility==='bom'&&resource.category==='fastener-reference').length,6,'Hardware references belong to BOM');
 const bomCADResources=manifest.resources.filter(resource=>resource.id.startsWith('bom-cad-'));
 assert.deepEqual(bomCADResources.map(resource=>resource.id).sort(),['bom-cad-bottom-support','bom-cad-side-support','bom-cad-spacer']);
@@ -73,23 +76,23 @@ assert.ok(manifest.resources.every(resource=>['resources','bom','hidden'].includ
 assert.ok(teachingSteps.every(step=>step.partIds.every(id=>partIDs.has(id))),'Unknown step-to-part reference');
 for(const resource of manifest.resources) {
  if(resource.downloadAvailable===false){
-  assert.equal(resource.category,'cad');assert.equal(resource.visibility,'hidden');assert.equal(resource.updateStatus,'retired');
+  assert.ok(['cad','print'].includes(resource.category));assert.equal(resource.visibility,'hidden');assert.equal(resource.updateStatus,'retired');
   assert.ok(!fs.existsSync(publicFile(resource.url)),`Retired model download remains: ${resource.id}`);
   continue;
  }
  const bytes=fs.readFileSync(publicFile(resource.url));assert.equal(bytes.length,resource.bytes,resource.id);assert.equal(hash(bytes),resource.sha256,resource.id);
- if(resource.category==='print'){
-  assert.equal(resource.packageScope,'complete-final-print-set');assert.deepEqual(resource.partIds,[]);assert.deepEqual(resource.stepIds,[],'Do not invent a per-file BOM or assembly allocation');
+ if(resource.id==='assembly-final-step'){
+  assert.equal(resource.packageScope,'supplied-assembly-cad');assert.deepEqual(resource.partIds,[]);assert.deepEqual(resource.stepIds,[],'An assembly file is not a verified per-part manufacturing allocation');
  }else assert.ok(resource.partIds.length&&resource.stepIds.length,`Resource linkage missing: ${resource.id}`);
  assert.ok(resource.partIds.every(id=>partIDs.has(id)),`Unknown BOM link: ${resource.id}`);
  assert.ok(resource.stepIds.every(id=>stepIDs.has(id)),`Unknown assembly link: ${resource.id}`);
 }
-assert.deepEqual(finalPrintFiles.map(resource=>resource.downloadFilename),['Final_1.3mf','Final_2.3mf','Final_3.3mf','Final_4.3mf']);
-assert.deepEqual(finalPrintFiles.map(resource=>resource.estimatedPrintMinutes),[8358,5379,2269,1169]);
-assert.equal(finalPrintFiles[3].previousEstimatedPrintMinutes,1008);assert.equal(finalPrintFiles[3].printEstimateStatus,undefined);assert.equal(printEstimatePending,false);
-assert.equal(totalPrintMinutes,17175,'All four current estimates are confirmed');assert.equal(formatPrintDuration(totalPrintMinutes,'zh'),'11天22小时15分钟');assert.equal(formatPrintDuration(totalPrintMinutes,'zh',true),'286小时15分钟');assert.equal(formatPrintDuration(totalPrintMinutes,'en'),'11d 22h 15min');
-assert.deepEqual(fs.readdirSync(path.join(project,'public/resources')).filter(name=>/\.(?:3mf|step|stp|stl|obj|gltf|glb)$/i.test(name)).sort(),['Final_1.3mf','Final_2.3mf','Final_3.3mf','Final_4.3mf'],'Only four model downloads are published');
-assert.equal(manifest.resources.filter(r=>r.category==='cad').length,20);assert.ok(manifest.resources.filter(r=>r.category==='cad').every(r=>r.downloadAvailable===false));
+assert.deepEqual(assemblyCADFiles.map(resource=>resource.downloadFilename),['Final.step','comb-device.step']);
+assert.deepEqual(assemblyCADFiles.map(resource=>resource.bytes),[10042882,185629]);
+assert.deepEqual(assemblyCADFiles.map(resource=>resource.sha256),['1f15738912bae235e508296b7331f9fe8f77b38640c4633b7e15cf7aa106e3fe','07f7ef3f60a37d27adb3a91d31e4900f6cc36c78f33a389861a7b2314acd003e']);
+assert.deepEqual(fs.readdirSync(path.join(project,'public/resources')).filter(name=>/\.(?:3mf|step|stp|stl|obj|gltf|glb)$/i.test(name)).sort(),['Final.step','comb-device.step'],'Only the two supplied CAD downloads are published');
+assert.equal(manifest.resources.filter(r=>r.category==='cad'&&r.downloadAvailable===false).length,20,'Retired source CAD downloads remain retired');
+assert.equal(manifest.resources.filter(r=>r.category==='print').length,4);assert.ok(manifest.resources.filter(r=>r.category==='print').every(r=>r.downloadAvailable===false&&r.visibility==='hidden'&&r.updateStatus==='retired'));
 for(const filename of ['print-side-support.3mf','print-interlayer-support.3mf','print-holder-v1.3mf','print-layer-01.3mf','print-prototype-v4.3mf'])assert.ok(!fs.existsSync(publicFile(`/resources/${filename}`)),`Old print download remains: ${filename}`);
 for(const filename of ['print-prototype-v0.3mf','print-prototype-v1.3mf','print-prototype-v2.3mf','print-prototype-v3.3mf','fastener-nut-reference.png'])assert.ok(!fs.existsSync(publicFile(`/resources/${filename}`)),`Retired publication file remains: ${filename}`);
 assert.ok(!manifest.resources.some(r=>/M10/.test(`${r.titleZh} ${r.titleEn}`)),'M10 is not used in this assembly');
@@ -141,4 +144,4 @@ assert.equal(manifest.hardware.clearCover.thicknessMM,2);assert.equal(manifest.h
 assert.equal(manifest.hardware.frameBrackets.quantity,20);assert.equal(manifest.hardware.extrusionFrame.quantity,1);assert.equal(manifest.hardware.extrusionConnections.boltQuantity,112);assert.equal(manifest.hardware.extrusionConnections.tSlotNutQuantity,112);
 assert.deepEqual([manifest.hardware.spacers.nominalGeometryMM.length,manifest.hardware.spacers.nominalGeometryMM.outerDiameter,manifest.hardware.spacers.nominalGeometryMM.throughHoleDiameter],[18,14,6.2]);
 assert.ok(!manifest.parts.some(p=>p.role==='acrylic'),'Do not misidentify independent acrylic CAD');
-console.log(JSON.stringify({status:'passed',layers:14,columns:28,magnets:1736,BOMCategories:teachingParts.length,catalogEntries:manifest.resources.length,visibleResourceDownloads:visibleResources.length,finalPrintFiles:finalPrintFiles.length,knownEstimatedPrintMinutes:totalPrintMinutes,printEstimatePending,retiredCADDownloads:manifest.resources.filter(r=>r.downloadAvailable===false).length,bomReferenceDownloads:6,retainedMATLABPrograms:7,CADInstances:manifest.confirmedCADInstanceCounts,nominalPocketConflicts:conflicts,properRigidRegistrations:14},null,2));
+console.log(JSON.stringify({status:'passed',layers:14,columns:28,magnets:1736,BOMCategories:teachingParts.length,catalogEntries:manifest.resources.length,visibleResourceDownloads:visibleResources.length,assemblyCADFiles:assemblyCADFiles.length,retiredPrintDownloads:4,retiredCADDownloads:manifest.resources.filter(r=>r.category==='cad'&&r.downloadAvailable===false).length,bomReferenceDownloads:6,retainedMATLABPrograms:7,CADInstances:manifest.confirmedCADInstanceCounts,nominalPocketConflicts:conflicts,properRigidRegistrations:14},null,2));

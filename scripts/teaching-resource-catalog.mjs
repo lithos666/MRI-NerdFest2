@@ -9,6 +9,13 @@ export const FINAL_PRINT_FILES = [
   { filename: 'Final_3.3mf', id: 'print-final-3', estimatedPrintMinutes: 2269 },
   { filename: 'Final_4.3mf', id: 'print-final-4', estimatedPrintMinutes: 1169, previousEstimatedPrintMinutes: 1008 },
 ];
+// These are the only current model downloads. Preserve the source CAD behind
+// the lesson separately from publication; old print batches stay retired.
+export const CURRENT_CAD_FILES = [
+  { filename: 'Final.step', id: 'assembly-final-step', titleZh: '整机装配 CAD · Final.step', titleEn: 'Complete assembly CAD · Final.step', partIds: [], stepIds: [], packageScope: 'supplied-assembly-cad', versionStatus: 'user-supplied-assembly-cad' },
+  { filename: 'comb-device.step', id: 'comb-device-step', titleZh: '梳状对齐件 CAD · comb-device.step', titleEn: 'Comb alignment CAD · comb-device.step', partIds: ['comb-alignment'], stepIds: ['step-21'], versionStatus: 'user-supplied-comb-cad' },
+];
+const currentCADIds = new Set(CURRENT_CAD_FILES.map(file => file.id));
 const retiredCAD = resource => ({ ...resource, visibility: 'hidden', updateStatus: 'retired', downloadAvailable: false });
 
 // Keep resource preparation separate from CAD tessellation. Source MATLAB is
@@ -26,9 +33,10 @@ export function buildTeachingResources({ project, source, matlabDirectory, prese
     const publishedName = options.downloadFilename || `${id}.${extension}`;
     if (path.basename(publishedName) !== publishedName) throw new Error('Invalid download filename');
     const url = input.url || `/resources/${publishedName}`;
-    if (!input.url && category !== 'cad') fs.writeFileSync(path.join(resourceDirectory, publishedName), bytes);
+    const currentCAD = category === 'cad' && currentCADIds.has(id);
+    if (!input.url && (category !== 'cad' || currentCAD)) fs.writeFileSync(path.join(resourceDirectory, publishedName), bytes);
     const resource = { id, titleZh, titleEn, type: extension.toUpperCase(), sourceRelativePath: input.relative.replaceAll('\\', '/'), url, bytes: bytes.length, sha256: sha256(bytes), category, partIds, stepIds, visibility: category === 'fastener-reference' ? 'bom' : 'resources', updateStatus: 'current', ...(layer ? { layer } : {}), ...options };
-    resources.push(category === 'cad' ? retiredCAD(resource) : resource);
+    resources.push(category === 'cad' && !currentCAD ? retiredCAD(resource) : resource);
   };
   const addSource = (relative, ...args) => {
     const previous = previousResources.find(resource => resource.id === args[0]);
@@ -63,12 +71,24 @@ export function buildTeachingResources({ project, source, matlabDirectory, prese
   addSource('模型/surport.step', 'cad-ring-support', 'cad', '框架安装支撑 CAD', 'Frame mounting support CAD', ['ring-support'], ['step-06', 'step-08', 'step-09']);
   const legacySpacer = { versionStatus: 'legacy-block-reference-not-release-confirmed', referenceNoteZh: '历史文件是方块形隔块，不符合当前已确认的 18 mm 长圆柱形隔块。仅供旧接口参考；不能据此制造当前圆柱。', referenceNoteEn: 'This historical file contains block-shaped spacers, not the confirmed 18 mm-long cylinders. Use it only as an old interface reference, not to manufacture the current cylinder.' };
   addSource('模型/support_layer.step', 'cad-locator', 'cad', '历史方块层间隔块 CAD（非当前圆柱）', 'Historical block-spacer CAD (not the current cylinder)', ['locator'], ['step-06', 'step-07', 'step-09'], undefined, legacySpacer);
-  for (const { filename, id, ...printEstimate } of FINAL_PRINT_FILES) {
-    // These are complete print batches. Their per-file BOM allocation has
-    // not been supplied, so do not invent part or assembly-stage mappings.
-    addSource(`打印文件/${filename}`, id, 'print', filename, filename, [], [], undefined, {
-      versionStatus: 'user-confirmed-final-print-batch', downloadFilename: filename,
-      ...printEstimate, estimateSource: typeof printEstimate.estimatedPrintMinutes === 'number' ? 'user-provided' : 'previous-version-user-provided', packageScope: 'complete-final-print-set',
+  for (const { id } of FINAL_PRINT_FILES) {
+    const previous = previousResources.find(resource => resource.id === id);
+    if (previous) resources.push(retiredCAD(previous));
+  }
+  for (const file of CURRENT_CAD_FILES) {
+    const previous = previousResources.find(resource => resource.id === file.id);
+    const published = path.join(resourceDirectory, file.filename);
+    if (preservePublishedCAD && previous && fs.existsSync(published) && sha256(fs.readFileSync(published)) === previous.sha256) {
+      // A directory refresh cannot silently replace already reviewed CAD.
+      resources.push({ ...previous, visibility: 'resources', updateStatus: 'current', downloadAvailable: true });
+      continue;
+    }
+    const sourceFolder = fs.existsSync(path.join(source, 'CAD模型')) ? 'CAD模型' : '模型';
+    addFile({ filename: path.join(source, sourceFolder, file.filename), relative: `${sourceFolder}/${file.filename}` }, file.id, 'cad', file.titleZh, file.titleEn, file.partIds, file.stepIds, undefined, {
+      downloadFilename: file.filename, downloadAvailable: true, versionStatus: file.versionStatus,
+      ...(file.packageScope ? { packageScope: file.packageScope } : {}),
+      referenceNoteZh: previous?.referenceNoteZh ?? (file.id === 'assembly-final-step' ? '用户提供的整机 STEP；梳状件另有独立 CAD，请同时查看。' : '用于装配阶段 11 的独立梳状对齐件 STEP。'),
+      referenceNoteEn: previous?.referenceNoteEn ?? (file.id === 'assembly-final-step' ? 'Supplied assembly STEP; inspect the separate comb CAD as well.' : 'Separate comb alignment STEP for assembly stage 11.'),
     });
   }
 
@@ -117,7 +137,7 @@ export function buildTeachingResources({ project, source, matlabDirectory, prese
   }
   // Clean only generated website download copies. GLB scene/BOM assets and
   // all files in the participant's original engineering directory stay intact.
-  const allowedModels = new Set(FINAL_PRINT_FILES.map(file => file.filename));
+  const allowedModels = new Set(CURRENT_CAD_FILES.map(file => file.filename));
   for (const filename of fs.readdirSync(resourceDirectory)) {
     if (!/\.(?:3mf|step|stp|stl|obj|gltf|glb)$/i.test(filename) || allowedModels.has(filename)) continue;
     const target = path.resolve(resourceDirectory, filename);
@@ -129,7 +149,7 @@ export function buildTeachingResources({ project, source, matlabDirectory, prese
 
 export function updateConfirmedHardwareMetadata(manifest) {
   manifest.rodAxes = manifest.rodAxes.map(axis => ({ ...axis, hardwareThread: 'M6', hardwareStatus: 'user-confirmed', status: 'axis-candidate-hole-diameter-pending' }));
-  manifest.confirmedBOMQuantities = { magnetCube: 1736, segmentedHousing: 56, housingCap: 56, clearCover: 56, mountingSupports: { total: 42, side: 28, bottom: 14 }, cylindricalSpacers: { total: 32, breakdown: [4, 8], lengthMM: 18 }, throughRods: 8, m3ShortScrews: 448, m6Nuts: 8, frameLBrackets: 20, extrusionFrames: 1, extrusionMountingBolts: 112, tSlotNuts: 112 };
+  manifest.confirmedBOMQuantities = { magnetCube: 1736, segmentedHousing: 56, housingCap: 56, clearCover: 56, mountingSupports: { total: 42, side: 28, bottom: 14 }, cylindricalSpacers: { total: 32, breakdown: [4, 8], lengthMM: 18 }, throughRods: 8, m3ShortScrews: 448, m6Nuts: 8, frameLBrackets: 20, extrusionFrames: 1, extrusionMountingBolts: 112, tSlotNuts: 112, combAlignmentUnits: 78 };
   for (const part of manifest.parts) {
     if (part.role === 'support') { part.procurementQuantityStatus = 'user-confirmed'; part.confirmedQuantity = 42; }
     if (part.role === 'locator') { part.procurementQuantityStatus = 'user-confirmed'; part.confirmedQuantity = 32; part.geometryStatus = 'historical-block-reference-not-current-cylinder'; }
@@ -143,6 +163,7 @@ export function updateConfirmedHardwareMetadata(manifest) {
     frameBrackets: { partId: 'frame-l-bracket', suppliedBy: 'organizer', dimensionsStatus: 'supplied-part-reference', quantity: 20, quantityStatus: 'user-confirmed', materialStatus: 'pending' },
     extrusionFrame: { partId: 'aluminum-frame', suppliedBy: 'organizer', quantity: 1, quantityStatus: 'user-confirmed', material: 'aluminium', alloyGradeStatus: 'pending' },
     extrusionConnections: { partIds: ['extrusion-bolt', 't-slot-nut'], suppliedBy: 'organizer', threadStatus: 'pending', slotSeriesStatus: 'pending', boltQuantity: 112, tSlotNutQuantity: 112, quantityStatus: 'user-confirmed', materialStatus: 'pending' },
+    combAlignment: { partId: 'comb-alignment', quantity: 78, quantityStatus: 'user-confirmed', gapCount: 13, unitsPerGap: 6, upperPerGap: 3, lowerPerGap: 3, stationAnglesDegrees: [22,82,142,202,248,322], geometryStatus: 'teaching-unit-derived-from-supplied-comb-profile', materialStatus: 'pending', manufacturingFitStatus: 'nominal-axial-face-contact-no-allowance-certified' },
   };
   const bomCADFile = path.join(path.resolve(import.meta.dirname, '..'), 'lib/bom-cad-assets.json');
   if (fs.existsSync(bomCADFile)) {
@@ -159,7 +180,8 @@ export function updateConfirmedHardwareMetadata(manifest) {
   const spacerPending = manifest.hardware.spacers.nominalGeometryMM
     ? 'Cylindrical spacers: supplied CAD has 18 mm length, 14 mm outer diameter and 6.2 mm passage; four spacers in each internal gap of R01–R05 and R10–R14 confirmed; physical printing fit pending'
     : 'Cylindrical spacers: 32 pieces (4 × 8), length 18 mm, passage for M6 confirmed; OD, bore diameter, mounting distribution and current manufacturing file pending';
-  manifest.pending = [...manifest.pending.filter(item => !obsolete.includes(item)), 'M3 brass screws confirmed at 448 (32 per layer); screw length and torque pending (historical CAD 2.9×16 BF versus M3×18 reference)', 'Eight brass M6 rods: four across R01–R05 and four across R10–R14; eight brass M6 nuts confirmed; rod cut lengths and tightening requirements pending', spacerPending, 'Clear cover: PMMA, 2 mm thick confirmed; hole-pattern DXF and comb-like alignment-device CAD not yet completed by the user', 'Organizer provides 20 L-brackets, one aluminium frame, 112 extrusion bolts and 112 T-slot nuts; use supplied specifications', 'Manufacturing materials and tolerances not established by BOM quantity confirmation'];
+  const suppliedComb = fs.existsSync(path.join(path.resolve(import.meta.dirname, '..'), 'lib/comb-alignment-asset.json'));
+  manifest.pending = [...manifest.pending.filter(item => !obsolete.includes(item)), 'M3 brass screws confirmed at 448 (32 per layer); screw length and torque pending (historical CAD 2.9×16 BF versus M3×18 reference)', 'Eight brass M6 rods: four across R01–R05 and four across R10–R14; eight brass M6 nuts confirmed; rod cut lengths and tightening requirements pending', spacerPending, suppliedComb ? 'Clear cover: PMMA, 2 mm thick confirmed; hole-pattern DXF remains pending. Comb STEP is supplied separately; use the confirmed mounting arrangement and manufacturing specifications.' : 'Clear cover: PMMA, 2 mm thick confirmed; hole-pattern DXF and comb-like alignment-device CAD not yet completed by the user', 'Organizer provides 20 L-brackets, one aluminium frame, 112 extrusion bolts and 112 T-slot nuts; use supplied specifications', 'Manufacturing materials and tolerances not established by BOM quantity confirmation'];
   manifest.pending = [...new Set(manifest.pending)];
   return manifest;
 }

@@ -3,7 +3,7 @@ import {TEACHING_ID, TEACHING_STAGE_COUNT, initialProgress, teachingSteps, teach
 
 const progress=(currentStep,stepOrderVersion,completedStepIds=[])=>({schemaVersion:1,tutorialId:TEACHING_ID,currentStep,stepOrderVersion,currentRing:10,completedStepIds});
 assert.equal(TEACHING_STAGE_COUNT,11);
-assert.equal(initialProgress().stepOrderVersion,4);
+assert.equal(initialProgress().stepOrderVersion,5);
 const currentIds=Array.from({length:11},(_,index)=>`step-${index+11}`);
 assert.deepEqual(teachingSteps.map(step=>step.id),currentIds);
 assert.deepEqual(teachingSteps.map(step=>step.sceneStep),Array.from({length:11},(_,index)=>index+11));
@@ -17,28 +17,38 @@ for(const [version,count] of [[undefined,9],[2,9],[3,10]]){
   const migrated=validateProgress(saved);
   assert.equal(migrated.currentStep,1,`Old version ${version}, stage ${current}`);
   assert.equal(migrated.currentRing,10);
-  assert.equal(migrated.stepOrderVersion,4);
+  assert.equal(migrated.stepOrderVersion,5);
   assert.deepEqual(migrated.completedStepIds,[]);
   assert.deepEqual(saved,before,'Migration must not mutate browser data');
   legacyResetCases++;
  }
 }
 const readyIds=teachingSteps.filter(step=>step.status!=='pending-design').map(step=>step.id);
-assert.equal(readyIds.length,10);
+assert.equal(readyIds.length,11);
 for(let current=1;current<=11;current++){
- const restored=validateProgress(progress(current,4,readyIds));
+ const restored=validateProgress(progress(current,5,readyIds));
  assert.equal(restored.currentStep,current);
  assert.deepEqual(restored.completedStepIds,readyIds);
  assert.deepEqual(validateProgress(restored),restored,'Current progress must round-trip');
 }
-assert.equal(teachingSteps.at(-1).status,'pending-design');
-assert.deepEqual(validateProgress(progress(11,4,['step-11','step-11','step-21','unknown','step-03'])).completedStepIds,['step-11'],'Pending designs cannot be marked physically complete');
-assert.equal(validateProgress(progress(99,4)).currentStep,1);
-assert.equal(validateProgress({...progress(1,4),currentRing:99}).currentRing,1);
-assert.equal(validateProgress({...progress(5,4),tutorialId:'other'}),null);
+assert.equal(teachingSteps.at(-1).status,undefined);
+const changedStages=['step-18','step-21'];
+for(let current=1;current<=11;current++){
+ const old=progress(current,4,currentIds),before=structuredClone(old),migrated=validateProgress(old);
+ assert.equal(migrated.currentStep,current,'The stage order is unchanged');
+ assert.equal(migrated.currentRing,10);
+ assert.equal(migrated.stepOrderVersion,5);
+ assert.deepEqual(migrated.completedStepIds,currentIds.filter(id=>!changedStages.includes(id)),'Only frame bolting and the formerly pending comb stage need rechecking');
+ assert.deepEqual(old,before);
+}
+assert.deepEqual(validateProgress(progress(11,5,['step-11','step-11','step-21','unknown','step-03'])).completedStepIds,['step-11','step-21'],'Current manual comb completion is valid');
+assert.deepEqual(initialProgress().completedStepIds,[],'A supplied CAD file does not automatically complete an inspection');
+assert.equal(validateProgress(progress(99,5)).currentStep,1);
+assert.equal(validateProgress({...progress(1,5),currentRing:99}).currentRing,1);
+assert.equal(validateProgress({...progress(5,5),tutorialId:'other'}),null);
 
 const allowedChecks=new Set(teachingSteps.flatMap(step=>step.checks.map(check=>check.id)));
-const oldChecks=['step-04-holes','step-10-count-v4','step-10-capture','step-01-interface'];
+const oldChecks=['step-04-holes','step-10-count-v4','step-10-capture','step-01-interface','step-18-check-1-v4','step-21-check-1-v4'];
 assert.deepEqual(validateStoredIds({schemaVersion:1,tutorialId:TEACHING_ID,ids:oldChecks},allowedChecks),[]);
 const firstCheck=teachingSteps[0].checks[0].id;
 assert.deepEqual(validateStoredIds({schemaVersion:1,tutorialId:TEACHING_ID,ids:[firstCheck,firstCheck,'unknown']},allowedChecks),[firstCheck]);
@@ -53,4 +63,4 @@ assert.deepEqual(normalizeTeachingResource(migratedResource),migratedResource);
 assert.deepEqual(oldResource.stepIds,['step-05']);
 assert.deepEqual(normalizeTeachingResource({id:'final-4',titleZh:'最终打印文件',titleEn:'Final print file',stepIds:[],partIds:[]}).stepIds,[]);
 for(const part of teachingParts)for(const id of part.stepIds)assert.ok(currentIds.includes(id),`${part.id}: ${id}`);
-console.log(JSON.stringify({status:'passed',stages:11,progressVersion:4,legacyResetCases,currentProgressRoundtrips:11,selectedLayerPreserved:true,oldCompletionsRejected:true,pendingDesignCannotComplete:true,resourceMigrationIdempotent:true}));
+console.log(JSON.stringify({status:'passed',stages:11,progressVersion:5,legacyResetCases,currentProgressRoundtrips:11,version4TargetedMigrations:11,selectedLayerPreserved:true,onlyUpdatedStagesRequireRecheck:true,combCompletionManual:true,resourceMigrationIdempotent:true}));
