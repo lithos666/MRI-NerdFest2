@@ -149,7 +149,7 @@ export function buildTeachingResources({ project, source, matlabDirectory, prese
 
 export function updateConfirmedHardwareMetadata(manifest) {
   manifest.rodAxes = manifest.rodAxes.map(axis => ({ ...axis, hardwareThread: 'M6', hardwareStatus: 'user-confirmed', status: 'axis-candidate-hole-diameter-pending' }));
-  manifest.confirmedBOMQuantities = { magnetCube: 1736, segmentedHousing: 56, housingCap: 56, clearCover: 56, mountingSupports: { total: 42, side: 28, bottom: 14 }, cylindricalSpacers: { total: 32, breakdown: [4, 8], lengthMM: 18 }, throughRods: 8, m3ShortScrews: 448, m6Nuts: 8, frameLBrackets: 20, extrusionFrames: 1, extrusionMountingBolts: 112, tSlotNuts: 112, combAlignmentUnits: 78 };
+  manifest.confirmedBOMQuantities = { magnetCube: 1736, segmentedHousing: 56, housingCap: 56, clearCover: 56, mountingSupports: { total: 42, side: 28, bottom: 14 }, cylindricalSpacers: { total: 32, breakdown: [4, 8], lengthMM: 18 }, throughRods: 8, m3ShortScrews: 448, m6Nuts: 8, frameLBrackets: 20, extrusionFrames: 1, extrusionMountingBolts: 112, tSlotNuts: 112, combAlignmentAssemblies: 6, combAlignmentTeeth: 78 };
   for (const part of manifest.parts) {
     if (part.role === 'support') { part.procurementQuantityStatus = 'user-confirmed'; part.confirmedQuantity = 42; }
     if (part.role === 'locator') { part.procurementQuantityStatus = 'user-confirmed'; part.confirmedQuantity = 32; part.geometryStatus = 'historical-block-reference-not-current-cylinder'; }
@@ -163,7 +163,7 @@ export function updateConfirmedHardwareMetadata(manifest) {
     frameBrackets: { partId: 'frame-l-bracket', suppliedBy: 'organizer', dimensionsStatus: 'supplied-part-reference', quantity: 20, quantityStatus: 'user-confirmed', materialStatus: 'pending' },
     extrusionFrame: { partId: 'aluminum-frame', suppliedBy: 'organizer', quantity: 1, quantityStatus: 'user-confirmed', material: 'aluminium', alloyGradeStatus: 'pending' },
     extrusionConnections: { partIds: ['extrusion-bolt', 't-slot-nut'], suppliedBy: 'organizer', threadStatus: 'pending', slotSeriesStatus: 'pending', boltQuantity: 112, tSlotNutQuantity: 112, quantityStatus: 'user-confirmed', materialStatus: 'pending' },
-    combAlignment: { partId: 'comb-alignment', quantity: 78, quantityStatus: 'user-confirmed', gapCount: 13, unitsPerGap: 6, upperPerGap: 3, lowerPerGap: 3, stationAnglesDegrees: [22,82,142,202,248,322], geometryStatus: 'teaching-unit-derived-from-supplied-comb-profile', materialStatus: 'pending', manufacturingFitStatus: 'nominal-axial-face-contact-no-allowance-certified' },
+    combAlignment: { partId: 'comb-alignment', quantity: 6, quantityUnit: 'continuous-comb-assembly', quantityStatus: 'user-confirmed-photo-corrected', gapCount: 13, teethPerAssembly: 13, locatingContactCount: 78, upperAssemblies: 3, lowerAssemblies: 3, stationAnglesDegrees: [22,82,142,202,248,322], geometryStatus: 'continuous-teaching-rail-derived-from-supplied-comb-profiles', materialStatus: 'pending', segmentationStatus: 'three-butt-sections-illustrative-not-manufacturing-joint', teachingRadialOffsetMM: 0.1, manufacturingFitStatus: 'nominal-axial-face-contact-no-allowance-certified' },
   };
   const bomCADFile = path.join(path.resolve(import.meta.dirname, '..'), 'lib/bom-cad-assets.json');
   if (fs.existsSync(bomCADFile)) {

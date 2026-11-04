@@ -4,9 +4,9 @@
 
 This teaching edition has five sections: Overview, BOM, Assembly, Principles & Lab, and Resources. Its baseline is the new 14-layer, 28-column assembly with 1,736 separate 12 mm cubes. Mechanical meshes come from supplied STEP files; magnet positions and directions come from the MATLAB data.
 
-当前装配流程先分别完成两个半圆，再合并整层、固定左右支撑、装入框架并安装十四层。第 8 步明确演示支撑、铝型材 T 型槽螺母与连接螺栓的紧固；第 10 步安装两组螺杆与隔块。第 11 步采用用户提供的梳状件轮廓，在 13 个层间间隙分别展示 6 处相同定位结构，上下半圆各 3 处，共 78 处。材料清单包含 15 类物料，每项有材料说明与配图。原始梳状 CAD 含四槽、五槽两种长轮廓，网页重复定位单元与原始长轮廓明确区分，不能把 78 处定位结构理解为 78 根长梳状件。
+当前装配流程先分别完成两个半圆，再合并整层、固定左右支撑、装入框架并安装十四层。第 8 步明确演示支撑、铝型材 T 型槽螺母与连接螺栓的紧固；第 10 步安装两组螺杆与隔块。第 11 步按实物照片展示 6 条沿轴向连接各层的连续定位梳，上下半圆各 3 条，每条有 13 个层间梳齿，共 78 处定位。较长梳条演示为三段首尾接续，接缝不重复叠放端齿。材料清单包含 15 类物料，每项有材料说明与配图。原始梳状 CAD 含四槽、五槽两种长轮廓；网页的十四层连续梳由其截面派生，分段与接缝是教学示意，不是另行核实的制造图。
 
-The eleven-stage process first completes two retained semicircles, then joins and supports each layer. Stage 8 explicitly bolts the holders to the aluminium frame using the supplied mounting bolts and T-slot nuts. Stage 10 installs the two rod banks and spacers. Stage 11 repeats the supplied comb profile as six identical locating units in each of the thirteen layer gaps, three on each semicircle: 78 locating units in total. The 15-category BOM includes materials and images. The supplied comb CAD contains four-slot and five-slot profiles; these source profiles are distinguished from the repeated locating units, so the count does not mean 78 long combs.
+The eleven-stage process first completes two retained semicircles, then joins and supports each layer. Stage 8 explicitly bolts the holders to the aluminium frame using the supplied mounting bolts and T-slot nuts. Stage 10 installs the two rod banks and spacers. Following the physical reference photo, stage 11 shows six continuous axial comb assemblies, three on each semicircle. Each backbone connects thirteen internal teeth across fourteen layers: 78 locating contacts in total. Long combs are illustrated as three end-to-end sections without duplicated end teeth. The 15-category BOM includes materials and images. The supplied CAD contains four-slot and five-slot profiles; the continuous teaching comb is derived from their cross-sections, and its segmentation is illustrative rather than a verified manufacturing drawing.
 
 | CAD 文件 / CAD file | 内容 / Contents |
 | --- | --- |

@@ -561,12 +561,12 @@ export const teachingParts: TeachingPart[] = [
     ]
   },
   {
-    id: "comb-alignment", name: text("层间定位结构（梳齿单元）", "Inter-layer alignment structures (tooth units)"), category: "printed", quantity: 78,
-    quantityBreakdown: text("13 个层间间隙 × 6 个；每处上半圆 3 个、下半圆 3 个", "13 inter-layer gaps × 6 units; 3 on each upper and lower semicircle per gap"),
-    unit: text("个 / 完整阵列", "units / array"),
-    specification: text("统一造型；每个层间分布 6 个，上下半圆各 3 个，共 78 个", "One repeated shape; 6 units per layer gap, 3 on each semicircle, 78 in total"),
+    id: "comb-alignment", name: text("轴向连续定位梳", "Continuous axial alignment comb assemblies"), category: "printed", quantity: 6,
+    quantityBreakdown: text("上半圆 3 条、下半圆 3 条；每条 13 个内部梳齿，共 78 处接触", "3 upper and 3 lower assemblies; 13 internal teeth per comb, 78 contact features in total"),
+    unit: text("条完整组件 / 完整阵列", "comb assemblies / array"),
+    specification: text("连续轴向背骨跨越 14 层；每条的 13 个内部梳齿对应 13 个层间间隙", "A continuous axial backbone spans all 14 layers; each comb's 13 internal teeth engage the 13 inter-layer gaps"),
     material: text("待确认", "To confirm"),
-    note: text("用户确认 14 层的 13 个相邻层间，每处使用 6 个同形定位单元，共 78 个；上、下半圆各 3 个。演示采用源 CAD 的 18 mm 齿形制作单元，需检查与周围零件的间隙。下载的 comb-device.step 仍是 4 槽（170 mm）和 5 槽（208 mm）两种长梳形源模型，并非 78 个单元的独立制造文件。材料和固定规格待确认。", "The confirmed arrangement uses 6 identical alignment units in each of the 13 gaps between 14 layers: 78 units total, with 3 on each upper and lower semicircle. The demonstration derives a unit from the source CAD's 18 mm tooth shape; check clearance to nearby parts. The downloaded comb-device.step remains the 4-slot (170 mm) and 5-slot (208 mm) source profiles, not a standalone manufacturing file for 78 units. Material and attachment specifications remain to be confirmed."),
+    note: text("用量按 6 条完整定位梳组件统计，78 为内部梳齿接触位置总数。背骨沿轴向连续；长度不足时，可按核定连接设计将短段端对端接成长梳。教学模型以来源齿形和背骨截面构建，每条展示三段对接，分段与接缝尚非核定制造方案。下载的 comb-device.step 保留原始 4 槽（170 mm）和 5 槽（208 mm）参考型材。材料、实际分段及连接工艺待确认。", "Quantity refers to 6 complete comb assemblies; 78 counts their internal tooth contact features. The backbone is continuous along the axis. Short sections may be joined end-to-end under an approved connection design. The teaching model uses the source tooth and backbone profiles and illustrates three butt-joined sections per comb; these sections and seams are not a verified manufacturing design. The downloaded comb-device.step retains the original 4-slot (170 mm) and 5-slot (208 mm) reference profiles. Material, production segmentation and joining details remain to be confirmed."),
     assetIds: ["comb-device-step"], stepIds: ["step-21"],
   }
 ];
@@ -618,9 +618,9 @@ spacerPart.image = { src: spacerPart.cadViews[0].imageURL, alt: text("层间隔�
 const acrylicClipPart = teachingParts.find(part => part.id === "acrylic-clip")!;
 acrylicClipPart.cadViews = [{ id: "acrylic-clip", label: acrylicClipPart.name, quantity: TEMPORARY_CLIP_COUNT, modelURL: acrylicClipAsset.url, imageURL: acrylicClipAsset.thumbnail.url, sourceName: acrylicClipAsset.sourceFilename }];
 const combAlignmentPart = teachingParts.find(part => part.id === "comb-alignment")!;
-combAlignmentPart.image = { src: `${combAlignmentAsset.derivedUnit.thumbnail.url}?v=${combAlignmentAsset.derivedUnit.thumbnail.sha256}`, alt: text("依据源 CAD 齿形生成的层间定位单元示意图", "Inter-layer alignment unit illustrated from the source CAD tooth shape"), kind: "illustration", caption: text("根据源 CAD 制作的教学单元；共 78 个，非独立制造 CAD。材料待确认。", "Teaching unit derived from source CAD; 78 in total, not standalone manufacturing CAD. Material remains to be confirmed.") };
+combAlignmentPart.image = { src: `${combAlignmentAsset.derivedRail.thumbnail.url}?v=${combAlignmentAsset.derivedRail.thumbnail.sha256}`, alt: text("具有连续背骨和 13 个内部梳齿的轴向定位梳教学模型", "Axial alignment comb teaching model with a continuous backbone and 13 internal teeth"), kind: "illustration", caption: text("整机共 6 条连续定位梳；每条 13 个内部梳齿。三段对接为来源 CAD 派生的教学模型，非核定制造方案。", "6 continuous comb assemblies per array, with 13 internal teeth each. The three butt-joined sections are a source-derived teaching model, not a verified manufacturing design.") };
 combAlignmentPart.cadViews = [
-  { id: "comb-alignment-unit", label: text("定位单元示意", "Alignment unit"), quantity: 78, modelURL: `${combAlignmentAsset.derivedUnit.modelURL}?v=${combAlignmentAsset.derivedUnit.sha256}`, imageURL: combAlignmentPart.image.src, sourceName: "comb-device.step · teaching derivative", kind: "derived" },
+  { id: "comb-alignment-rail", label: text("连续定位梳示意", "Continuous comb assembly"), quantity: 6, modelURL: `${combAlignmentAsset.derivedRail.modelURL}?v=${combAlignmentAsset.derivedRail.sha256}`, imageURL: combAlignmentPart.image.src, sourceName: "comb-device.step · continuous-rail teaching derivative", kind: "derived" },
   { id: "comb-source-profiles", label: text("源 CAD 长梳形", "Source comb profiles"), quantity: null, modelURL: `${combAlignmentAsset.url}?v=${combAlignmentAsset.sha256}`, imageURL: `${combAlignmentAsset.thumbnail.url}?v=${combAlignmentAsset.thumbnail.sha256}`, sourceName: combAlignmentAsset.sourceFilename, kind: "cad" },
 ];
 acrylicClipPart.image = { src: acrylicClipAsset.thumbnail.url, alt: text("提供的用于固定亚克力卡扣.step 生成的临时固定卡扣渲染图", "Temporary acrylic retaining clip rendered from the supplied STEP"), kind: "cad-render", caption: text("卡扣外形来自提供的 STEP；安装位置和运动为教学示意，实际夹持配合需实物核对。", "Clip geometry comes from the supplied STEP; placement and motion are instructional illustrations. Verify physical clamping fit on the real parts.") };
@@ -697,11 +697,11 @@ export const teachingSteps: TeachingStep[] = [
     note: text("8 根螺杆分前后两组，不是一组长杆贯穿全部十四层。杆长、端部配置和紧固要求按提供的机械设计核对。26 mm 是磁铁端面净距，18 mm 是隔块长度。", "The 8 rods form separate front and rear groups rather than traversing all fourteen layers. Verify rod lengths, end hardware and fastening requirements against the supplied mechanical design. The magnet-face gap is 26 mm; spacer length is 18 mm."), partIds: ["through-rod","locator","m6-nut"],
   },
   {
-    id: "step-21", index: 11, sceneStep: 21, title: text("安装梳状对齐件", "Fit the comb alignment devices"),
-    summary: text("在 13 个相邻层间分别均布 6 个相同定位单元，上、下半圆各 3 个，共 78 个。", "Fit 6 identical alignment units in each of the 13 adjacent-layer gaps, 3 on each semicircle, for 78 units in total."),
-    action: [text("按 R01／R02 至 R13／R14 核对全部 13 个层间间隙，辨认同形定位单元及配合方向。", "Identify all 13 gaps, from R01/R02 through R13/R14, and check the repeated alignment-unit shape and mating direction."), text("每个间隙采用六处避让安装点，上半圆 3 个、下半圆 3 个；避开支撑和框架，对齐后按配合方向装入。", "Use six clearance-adjusted positions per gap, 3 on each semicircle. Keep clear of the supports and frame, align the units and fit along the mating direction."), text("逐处检查单元与磁层、支撑、盖板及螺杆之间的间隙，再按实际机械设计完成定位或固定。", "Check clearance to the layers, supports, caps and rods at every location, then complete positioning or attachment according to the actual mechanical design.")],
-    checks: [{ id: "step-21-fit-check-v5", text: text("13 个层间各有 6 个同形单元，每处上、下半圆各 3 个，共 78 个。", "Each of the 13 gaps has 6 identical units, 3 per semicircle, giving 78 units in total.") }, { id: "step-21-attachment-check-v5", text: text("单元已按实物设计定位或固定，与各层及周围零件无干涉，间隙已检查。", "The units are positioned or attached according to the physical design, with interference and clearance checked against the layers and nearby parts.") }],
-    note: text("数量与分布由用户确认。单元演示以提供的梳状源 CAD 为依据；安装位置为教学排布，实物配合及固定规格仍需核对。独立下载的源文件保留原始 4 槽、5 槽长梳形，不能将其组件数量当作这 78 个单元的制造清单。完成实物检查后手动标记本步；亚克力加工 DXF 更新与此独立。", "Quantity and distribution are confirmed. The unit demonstration is based on the supplied comb source CAD; mounting positions illustrate the arrangement, while physical fit and attachment specifications still need checking. The separate source download retains the original 4-slot and 5-slot profiles; their component count is not a manufacturing list for these 78 units. Mark the stage complete after physical inspection. The acrylic-machining DXF update remains separate."), partIds: ["comb-alignment"],
+    id: "step-21", index: 11, sceneStep: 21, title: text("安装六条连续定位梳", "Fit the six continuous alignment combs"),
+    summary: text("安装 6 条跨越全部 14 层的连续定位梳，上、下半圆各 3 条；每条 13 个内部梳齿，共 78 处层间接触。", "Fit 6 continuous comb assemblies across all 14 layers, 3 on each semicircle. Each has 13 internal teeth, giving 78 inter-layer contact features."),
+    action: [text("辨认轴向连续的背骨，使整条定位梳与设备轴平行；将 13 个内部梳齿对准 R01／R02 至 R13／R14 的层间间隙。", "Identify the continuous backbone and align the comb parallel to the device axis. Match its 13 internal teeth to the gaps from R01/R02 through R13/R14."), text("采用六处避让安装点，上半圆 3 条、下半圆 3 条；核对整条梳与支撑、框架、盖板和螺杆的间隙，沿配合方向装入。", "Use six clearance-adjusted positions, 3 combs on each semicircle. Check the full comb against the supports, frame, caps and rods, then fit along the mating direction."), text("使用短段时，将各段沿轴向端对端对齐；检查背骨连续、接缝齐平，接缝处梳齿不重叠，再按核定工艺连接。", "When using short sections, align them end-to-end along the axis. Check backbone continuity, flush seams and non-overlapping teeth at each seam, then join according to the approved procedure."), text("逐条核对全部层间配合和分段接缝，按实际机械设计完成固定并检查无干涉。", "Inspect every layer engagement and segment seam on each comb, then complete attachment according to the mechanical design and check for interference.")],
+    checks: [{ id: "step-21-backbone-check-v6", text: text("共有 6 条连续背骨定位梳，上、下半圆各 3 条；每条 13 个内部梳齿，共 78 处接触。", "There are 6 continuous-backbone comb assemblies, 3 on each semicircle, with 13 internal teeth each and 78 contact features in total.") }, { id: "step-21-seam-check-v6", text: text("梳齿与全部 13 个层间对齐；分段端面对接，背骨连续，接缝处没有梳齿重叠。", "Teeth align with all 13 layer gaps; section ends meet in butt joints, the backbone remains continuous, and seam teeth do not overlap.") }, { id: "step-21-attachment-check-v6", text: text("定位梳已按实物设计连接和固定，与各层、支撑、框架及螺杆的间隙已检查。", "The combs are joined and secured according to the physical design, with clearance checked against the layers, supports, frame and rods.") }],
+    note: text("教学模型以来源 CAD 的齿形与背骨截面构建，每条用三段覆盖 5／4／5 层，并在层间对接。6 条是完整定位梳组件数量，78 为内部梳齿接触位置。分段、接缝及安装位置是教学示意；材料、连接工艺和制造公差尚须核定。独立下载仍保留原始 4 槽、5 槽源型材。完成实物检查后手动标记本步。", "The teaching model uses the source tooth and backbone profiles. Three sections cover 5/4/5 layers and meet within the layer gaps. The quantity is 6 complete comb assemblies; 78 counts the internal tooth contact features. Sectioning, seams and mounting positions are illustrative. Material, joining procedure and manufacturing tolerances still require confirmation. The separate download retains the original 4-slot and 5-slot source profiles. Mark this stage complete after inspecting the physical assembly."), partIds: ["comb-alignment"],
   }
 ];
 export const TEACHING_STAGE_COUNT = teachingSteps.length;
@@ -713,25 +713,26 @@ export interface TeachingProgress {
   schemaVersion: 1;
   tutorialId: typeof TEACHING_ID;
   currentStep: number;
-  stepOrderVersion?: 2 | 3 | 4 | 5;
+  stepOrderVersion?: 2 | 3 | 4 | 5 | 6;
   currentRing: number;
   completedStepIds: string[];
 }
-export const initialProgress = (): TeachingProgress => ({ schemaVersion: 1, tutorialId: TEACHING_ID, currentStep: 1, stepOrderVersion: 5, currentRing: 1, completedStepIds: [] });
+export const initialProgress = (): TeachingProgress => ({ schemaVersion: 1, tutorialId: TEACHING_ID, currentStep: 1, stepOrderVersion: 6, currentRing: 1, completedStepIds: [] });
 export function validateProgress(value: unknown): TeachingProgress | null {
   if (!value || typeof value !== "object") return null;
   const doc = value as Record<string, unknown>;
   if (doc.schemaVersion !== TEACHING_VERSION || doc.tutorialId !== TEACHING_ID || !Array.isArray(doc.completedStepIds)) return null;
-  const currentOrder = doc.stepOrderVersion === 4 || doc.stepOrderVersion === 5;
-  const currentChecks = doc.stepOrderVersion === 5;
+  const currentOrder = doc.stepOrderVersion === 4 || doc.stepOrderVersion === 5 || doc.stepOrderVersion === 6;
+  const frameChecksCurrent = doc.stepOrderVersion === 5 || doc.stepOrderVersion === 6;
+  const combChecksCurrent = doc.stepOrderVersion === 6;
   const currentStep = currentOrder && typeof doc.currentStep === "number" && Number.isInteger(doc.currentStep) && doc.currentStep >= 1 && doc.currentStep <= TEACHING_STAGE_COUNT ? doc.currentStep : 1;
   // The semicircle-first process is materially different. Keep the selected
   // layer, but require participants with an older lesson to review it from
   // stage 1 rather than treating old full-layer checks as new completions.
-  // The v5 lesson keeps that order but requires a new inspection for frame
-  // bolting and comb installation while preserving all unrelated stages.
-  const completedStepIds = currentOrder ? [...new Set(doc.completedStepIds.filter((id): id is string => typeof id === "string" && stepById.has(id) && stepById.get(id)?.status !== "pending-design" && (currentChecks || (id !== "step-18" && id !== "step-21"))))] : [];
-  return { schemaVersion: 1, tutorialId: TEACHING_ID, currentStep, stepOrderVersion: 5, currentRing: typeof doc.currentRing === "number" && Number.isInteger(doc.currentRing) && doc.currentRing >= 1 && doc.currentRing <= 14 ? doc.currentRing : 1, completedStepIds };
+  // v5 added frame bolting. v6 corrects the comb to continuous assemblies;
+  // that correction invalidates only the old comb inspection.
+  const completedStepIds = currentOrder ? [...new Set(doc.completedStepIds.filter((id): id is string => typeof id === "string" && stepById.has(id) && stepById.get(id)?.status !== "pending-design" && (id !== "step-18" || frameChecksCurrent) && (id !== "step-21" || combChecksCurrent)))] : [];
+  return { schemaVersion: 1, tutorialId: TEACHING_ID, currentStep, stepOrderVersion: 6, currentRing: typeof doc.currentRing === "number" && Number.isInteger(doc.currentRing) && doc.currentRing >= 1 && doc.currentRing <= 14 ? doc.currentRing : 1, completedStepIds };
 }
 export function validateStoredIds(value: unknown, allowed: Set<string>): string[] | null {
   if (!value || typeof value !== "object") return null;

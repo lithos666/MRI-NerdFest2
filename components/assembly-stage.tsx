@@ -19,7 +19,7 @@ import {ACRYLIC_THICKNESS_MM,ASSEMBLY_BORE_DIAMETER_MM,CONFIRMED_ROD_QUANTITY,VE
 import {isAssemblySequenceStage,legacyAssemblyScene,sequenceBaseQuarters,sequenceLoadingProgress,sequenceColumnCycle,sequenceColumnPose,sequenceCoveredColumns,sequenceCapPose,sequenceClipPose,sequenceCoverFraction} from "@/lib/assembly-sequence";
 import {createAssemblyGeometryOwner} from "@/lib/assembly-renderer-geometry";
 import {FRAME_HOLDER_FASTENERS,frameLayerArrival,frameFastenerProgress} from "@/lib/assembly-frame-fastening";
-import {COMB_STATION_ANGLES_DEG,COMB_GAP_CENTERS_MM,COMB_PER_GAP,COMB_UNIT_COUNT,COMB_CLEARANCE_STATUS,combUnitPose,combCameraBlend} from "@/lib/assembly-comb-layout";
+import {COMB_STATION_ANGLES_DEG,COMB_GAP_CENTERS_MM,COMB_PER_GAP,COMB_ASSEMBLY_COUNT,COMB_SECTIONS,COMB_JOINT_PLANES_MM,COMB_DISPLAY_RADIAL_ALLOWANCE_MM,COMB_CLEARANCE_STATUS,combSectionPose,combSectionProgress,combToothState,combCameraBlend} from "@/lib/assembly-comb-layout";
 import "./assembly-stage.css";
 
 export interface AssemblyStageProps {
@@ -190,10 +190,13 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
   const isolatedClip=new THREE.Group();root.add(isolatedClip);isolatedClip.visible=false;
   const clipMaterial=ownMat(new THREE.MeshStandardMaterial({color:0x1677bb,roughness:.4,metalness:0}));
   const clipEdgeMaterial=ownMat(new THREE.LineBasicMaterial({color:0x064d7b,transparent:true,opacity:.38}));
-  const combUnits=new THREE.Group();scene.add(combUnits);combUnits.visible=false;
-  const combUnitDraws:THREE.InstancedMesh[]=[];
+  const combRails=new THREE.Group();scene.add(combRails);combRails.visible=false;
+  const combSectionDraws:{section:number;draw:THREE.InstancedMesh}[]=[];
   const combMaterial=ownMat(new THREE.MeshStandardMaterial({color:0x65969c,metalness:0,roughness:.46}));
-  const combTransform=new THREE.Object3D();let combReady=false,combLoading=false,visibleCombUnits=0,combUpperCount=0,combLowerCount=0;
+  const combTransform=new THREE.Object3D();let combReady=false,combLoading=false,visibleCombSections=0,visibleCombAssemblies=0,visibleCombTeeth=0,engagedCombTeeth=0,combUpperCount=0,combLowerCount=0;
+  const combJointGeometry=ownGeo(new THREE.BufferGeometry().setFromPoints(combAlignmentAsset.derivedUnit.profileXYMM.map(([x,y])=>new THREE.Vector3(x,y,0))));
+  const combJointMaterial=ownMat(new THREE.LineBasicMaterial({color:0x3d666e,transparent:true,opacity:.48}));
+  const combJoints=COMB_JOINT_PLANES_MM.flatMap((z,joint)=>COMB_STATION_ANGLES_DEG.map((_,station)=>{const line=new THREE.LineLoop(combJointGeometry,combJointMaterial);combRails.add(line);return {line,z,joint,station};}));
   const jawGap=acrylicClipAsset.jawOpening.clearanceMM;
   // STEP #712/#715 identify the concentric 205/213 mm clip-back cylinders.
   // Undo only the preview centring, then place that same circular frame on
@@ -225,11 +228,13 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
     clipReady=true;clipLoading=false;apply();cameraTargets();updateReady();
    }catch{if(!disposed){clipLoading=false;setError(true);toggleLoading(false);}}
   }
-  async function loadCombUnits(){
+  async function loadCombRails(){
    if(combReady||combLoading)return;combLoading=true;
    try{
-    const meshes=await loadCAD({id:"source-derived-comb-unit",url:combAlignmentAsset.derivedUnit.url});if(disposed)return;
-    for(const item of meshes){const draw=new THREE.InstancedMesh(rendererGeometry.get(item.geometry),combMaterial,COMB_UNIT_COUNT);draw.instanceMatrix.setUsage(THREE.DynamicDrawUsage);draw.castShadow=true;draw.receiveShadow=true;combUnits.add(draw);combUnitDraws.push(draw);}
+    await Promise.all(combAlignmentAsset.derivedRail.sections.map(async(section,index)=>{
+     const meshes=await loadCAD({id:`source-derived-continuous-comb-${section.id}`,url:section.url});if(disposed)return;
+     for(const item of meshes){const draw=new THREE.InstancedMesh(rendererGeometry.get(item.geometry),combMaterial,COMB_ASSEMBLY_COUNT);draw.instanceMatrix.setUsage(THREE.DynamicDrawUsage);draw.castShadow=true;draw.receiveShadow=true;combRails.add(draw);combSectionDraws.push({section:index,draw});}
+    }));if(disposed)return;
     combReady=true;combLoading=false;apply();cameraTargets();updateReady();
    }catch{if(!disposed){combLoading=false;setError(true);toggleLoading(false);}}
   }
@@ -610,15 +615,23 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
   function apply(){
    const preview=partRole(current.partId),full=(current.step===0&&!preview)||current.step===7||current.step===9;
    const ringRetainerView=isRingRetainerStep(),clipOnly=preview==="temporary-clip";
-   combUnits.visible=current.scene===21&&!preview&&combReady;
-   visibleCombUnits=0;combUpperCount=0;combLowerCount=0;
-   for(let gap=0;gap<COMB_GAP_CENTERS_MM.length;gap++)for(let station=0;station<COMB_PER_GAP;station++){
-    const pose=combUnitPose(current.progress,gap,station);if(!pose.visible)continue;
-    combTransform.position.fromArray(pose.position);combTransform.rotation.set(0,0,pose.rotationZ);combTransform.updateMatrix();
-    for(const draw of combUnitDraws)draw.setMatrixAt(visibleCombUnits,combTransform.matrix);
-    visibleCombUnits++;if(COMB_STATION_ANGLES_DEG[station]<180)combUpperCount++;else combLowerCount++;
+   combRails.visible=current.scene===21&&!preview&&combReady;
+   visibleCombSections=0;visibleCombAssemblies=0;visibleCombTeeth=0;engagedCombTeeth=0;combUpperCount=0;combLowerCount=0;
+   for(let section=0;section<COMB_SECTIONS.length;section++){
+    let instance=0;
+    for(let station=0;station<COMB_ASSEMBLY_COUNT;station++){
+     const pose=combSectionPose(current.progress,section,station);if(!pose.visible)continue;
+     combTransform.position.fromArray(pose.position);combTransform.rotation.set(0,0,pose.rotationZ);combTransform.updateMatrix();
+     for(const item of combSectionDraws)if(item.section===section)item.draw.setMatrixAt(instance,combTransform.matrix);
+     instance++;visibleCombSections++;
+    }
+    for(const item of combSectionDraws)if(item.section===section){item.draw.count=instance;item.draw.instanceMatrix.needsUpdate=true;item.draw.computeBoundingSphere();}
    }
-   for(const draw of combUnitDraws){draw.count=visibleCombUnits;draw.instanceMatrix.needsUpdate=true;draw.computeBoundingSphere();}
+   for(let station=0;station<COMB_ASSEMBLY_COUNT;station++){
+    if(COMB_SECTIONS.every((_,section)=>combSectionProgress(current.progress,section,station).seated===1)){visibleCombAssemblies++;if(COMB_STATION_ANGLES_DEG[station]<180)combUpperCount++;else combLowerCount++;}
+    for(let gap=0;gap<COMB_GAP_CENTERS_MM.length;gap++){const tooth=combToothState(current.progress,gap,station);if(tooth.visible)visibleCombTeeth++;if(tooth.engaged)engagedCombTeeth++;}
+   }
+   for(const joint of combJoints){const pose=combSectionPose(1,0,joint.station);joint.line.position.set(pose.position[0],pose.position[1],joint.z);joint.line.rotation.z=pose.rotationZ;joint.line.visible=combSectionProgress(current.progress,joint.joint,joint.station).seated===1&&combSectionProgress(current.progress,joint.joint+1,joint.station).seated===1;}
    combMaterial.color.setHex(current.highlight?0x57999f:0xa2afb1);combMaterial.transparent=current.transparent;combMaterial.opacity=current.transparent?.45:1;
    isolatedClip.visible=clipOnly&&clipReady;
    const sequential=isNewSequence(),visibleQuarters=sequential?sequenceBaseQuarters(current.scene):[0,1,2,3];
@@ -839,9 +852,11 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    container!.dataset.loadedColumnCount=String(loadedColumnCount);container!.dataset.coveredColumnCount=coveredColumnCount.toFixed(4);container!.dataset.presentedColumnCount=String(presentedColumnCount);container!.dataset.heldColumnCount=String(heldColumnCount);
    container!.dataset.capVisibility=capStates.map(state=>state.visible?1:0).join(",");container!.dataset.capFastened=capStates.map(state=>state.visible&&state.fasten===1?1:0).join(",");
    container!.dataset.sideSupportsFastened=String(current.scene>=18||current.scene===17&&current.progress>=.88);
-   container!.dataset.combGeometryStatus=current.scene===21?"source-derived-module":"not-applicable";
-   container!.dataset.combUnitCount=String(combUnits.visible?visibleCombUnits:0);container!.dataset.combGapCount=String(COMB_GAP_CENTERS_MM.length);container!.dataset.combPerGap=String(COMB_PER_GAP);
-   container!.dataset.combUpperCount=String(combUnits.visible?combUpperCount:0);container!.dataset.combLowerCount=String(combUnits.visible?combLowerCount:0);container!.dataset.combStationAngles=JSON.stringify(COMB_STATION_ANGLES_DEG);container!.dataset.combClearanceStatus=COMB_CLEARANCE_STATUS;
+   container!.dataset.combGeometryStatus=current.scene===21?"source-derived-continuous-rail":"not-applicable";
+   container!.dataset.combAssemblyCount=String(combRails.visible?visibleCombAssemblies:0);container!.dataset.combSegmentCount=String(combRails.visible?visibleCombSections:0);container!.dataset.combToothCount=String(combRails.visible?visibleCombTeeth:0);container!.dataset.combEngagedToothCount=String(combRails.visible?engagedCombTeeth:0);
+   container!.dataset.combContinuousBackbone=String(combRails.visible&&visibleCombAssemblies===COMB_ASSEMBLY_COUNT);container!.dataset.combGapCount=String(COMB_GAP_CENTERS_MM.length);container!.dataset.combPerGap=String(COMB_PER_GAP);
+   delete container!.dataset.combUnitCount;
+   container!.dataset.combUpperCount=String(combRails.visible?combUpperCount:0);container!.dataset.combLowerCount=String(combRails.visible?combLowerCount:0);container!.dataset.combStationAngles=JSON.stringify(COMB_STATION_ANGLES_DEG);container!.dataset.combClearanceStatus=COMB_CLEARANCE_STATUS;container!.dataset.combRadialDisplayAllowanceMM=String(COMB_DISPLAY_RADIAL_ALLOWANCE_MM);
    container!.dataset.clipPlacementStatus="regular-full-ring-teaching-positions";
    container!.dataset.frameVisible=String(frameGroup.visible);container!.dataset.supportVisible=String(supportGroup.visible);
    container!.dataset.frameFastenersVisible=String(holderFasteners.visible);container!.dataset.frameBoltCount=String(holderFasteners.visible?visibleFrameFastenerCount:0);container!.dataset.frameTnutCount=container!.dataset.frameBoltCount;
@@ -859,6 +874,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
   function cameraTargets(snap=true){
    const preview=partRole(current.partId),full=(current.step===0&&!preview)||current.step===7||current.step===9,z=cubeModel.rings[current.ring-1]?.zMM??247;
    targetWhole.set(0,-8,full?0:z);eyeWhole.set(full?660:420,full?430:300,full?910:z+720);
+   if(current.scene===21)eyeWhole.set(900,440,620);
    if(preview){
     const relevant=display.filter(item=>item.role===preview),bounds=new THREE.Box3();
     if(relevant.length){for(const item of relevant)bounds.expandByObject(item.mesh);const center=bounds.getCenter(new THREE.Vector3()),size=bounds.getSize(new THREE.Vector3());targetWhole.copy(center);const distance=Math.max(60,Math.max(size.x,size.y,size.z)*2.05);eyeWhole.copy(center).add(new THREE.Vector3(.6,.35,1).normalize().multiplyScalar(distance));}
@@ -874,11 +890,11 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
     const direction=eyeWhole.clone().sub(targetWhole).normalize();
     const rodLow=current.step===7?Math.min(...rodBanks.map((bank,index)=>bank.position.z-rodBankDefinitions[index].displayLength/2)):-315;
     const rodHigh=current.step===7?Math.max(...rodBanks.map((bank,index)=>bank.position.z+rodBankDefinitions[index].displayLength/2)):315;
-    const halfWidth=current.scene===21?310:current.scene===18?310:270;
-    const low=new THREE.Vector3(-halfWidth,-305,Math.min(-315,rodLow)),high=new THREE.Vector3(halfWidth,current.scene===21?300:current.step===8?290:210,Math.max(315,rodHigh));
+    const halfWidth=current.scene===18?310:270;
+    const low=new THREE.Vector3(-halfWidth,-305,Math.min(-315,rodLow)),high=new THREE.Vector3(halfWidth,current.scene===21?270:current.step===8?290:210,Math.max(315,rodHigh));
     const center=low.clone().add(high).multiplyScalar(.5);
     const right=new THREE.Vector3(0,1,0).cross(direction).normalize(),up=direction.clone().cross(right).normalize();
-    const tanY=Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*.88,tanX=tanY*camera.aspect;
+    const tanY=Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*(current.scene===21?.92:.88),tanX=tanY*camera.aspect;
     let distance=0;
     for(const x of [low.x,high.x])for(const y of [low.y,high.y])for(const z of [low.z,high.z]){
      const point=new THREE.Vector3(x,y,z).sub(center),depth=point.dot(direction);
@@ -902,7 +918,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    if(!full&&current.step!==8&&!preview){targetWhole.applyMatrix4(mountingRotation);eyeWhole.applyMatrix4(mountingRotation);}
    if(preview){targetDetail.copy(targetWhole);eyeDetail.copy(eyeWhole);}
    if(current.scene===21){
-    const first=combUnitPose(Math.max(current.progress,.14),0,0);targetDetail.fromArray(first.position);eyeDetail.copy(targetDetail).add(new THREE.Vector3(125,95,220));
+    const first=combSectionPose(Math.max(current.progress,.14),0,0);targetDetail.fromArray(first.position);targetDetail.z=(COMB_SECTIONS[0].zMinMM+COMB_SECTIONS[0].zMaxMM)/2;eyeDetail.copy(targetDetail).add(new THREE.Vector3(260,120,150));
    }
    if(isRingRetainerStep()){
     // The Word sequence prepares one complete semicircle before joining the
@@ -1016,7 +1032,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    if(changed){autoCamera=true;focusedId=null;cameraTargets();}
    const full=(current.step===0&&!next.partId)||current.step===7||current.step===9;
    if((isNewSequence()?[12,13,14,15,16].includes(current.scene):isRingRetainerStep()&&current.step!==5)||partRole(next.partId)==="temporary-clip")void loadTemporaryClip();
-   if(current.scene===21&&!next.partId)void loadCombUnits();
+   if(current.scene===21&&!next.partId)void loadCombRails();
    if(full)void loadWhole();else if(currentRing!==next.ring)void loadRing(next.ring);
    updateReady();
    apply();
@@ -1028,7 +1044,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
    for(const mesh of [magnetBody,magnetNorth,magnetSouth,glyphN,glyphS,wholeAcrylic])mesh.dispose();
    for(const mesh of [brackets,boltHeads,boltSockets])mesh.dispose();
    for(const draw of mountingDraws)draw.mesh.dispose();
-   for(const draw of combUnitDraws)draw.dispose();
+   for(const item of combSectionDraws)item.draw.dispose();
    for(const object of [...display,...wholeDisplay]){if(!ownedMaterial.has(object.mesh.material as THREE.Material))(object.mesh.material as THREE.Material).dispose();}
    rendererGeometry.dispose();ownedGeometry.forEach(geometry=>geometry.dispose());ownedMaterial.forEach(material=>material.dispose());glyphTextures.forEach(texture=>texture.dispose());floor.geometry.dispose();(floor.material as THREE.Material).dispose();scene.environment=null;studioEnvironment?.dispose();key.shadow.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();
   }};
@@ -1050,7 +1066,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
   18:t("将已装好的磁体层放入框架，再把 T 型螺母滑入对应型材槽，沿支撑件现有孔轴装入连接螺栓并紧固。透视段用于看清螺栓、支撑与槽内螺母的配合；孔轴来自现有 CAD，紧固件外形、长度与规格为教学示意，以提供物料为准。","Seat the prepared layer in the frame, slide T-slot nuts into the matching extrusion channels, then insert and tighten bolts through the holders' existing holes. The transparent phase reveals how bolt, holder and nut fit together. Hole axes come from current CAD; hardware shapes, lengths and stock specifications are illustrative and must follow the supplied parts."),
   19:t("按 R01 → R14 安装全部十四层。每层 28 列，共 1,736 颗磁铁；各层径向位置和磁化方向按实际数据展示。此时不插入贯穿螺杆。","Mount all fourteen layers in R01 → R14 order: 28 columns per layer and 1,736 magnets total. Radial positions and magnetization follow the layer data. Keep the through-rods out until the next stage."),
   20:t("四根 M6 螺杆穿过前五层 R01–R05，另四根穿过后五层 R10–R14，中间四层不贯穿。32 个长 18 mm 圆柱隔块位于这两组内的八个层间，每处四个。轴线取自十四层实际 Ø6.2 mm CAD 通孔；杆长及端部余量为示意，切割长度待核定。","Four M6 rods pass through R01–R05 and another four through R10–R14, leaving the middle four layers clear. The 32 cylindrical 18 mm spacers occupy the eight gaps within these banks, four per gap. Axes follow the actual Ø6.2 mm CAD bores in all fourteen layers. Rod lengths and end allowances are illustrative; confirm cut lengths separately."),
-  21:t("十三个层间各放置六个相同定位结构，上下半圆各三处，共 78 个。展示单元从所提供梳子 CAD 的原始端面轮廓派生，厚度 18 mm；不是把完整长梳重复 78 次，也不是新的制造 STEP。六处安装角度为避让支撑与框架调整，图示三角网格投影和径向装入路径已核对。轴向为名义面接触、零间隙；实际加工公差和固定方式仍需核对。","Fit six identical locating structures in each of thirteen inter-layer gaps, three in each semicircle: 78 total. Each displayed 18 mm unit derives from the supplied comb CAD end profile; it is not a whole long comb repeated 78 times or a new manufacturing STEP. Six positions are adjusted to avoid supports and frame; projected mesh geometry and radial approach paths have been checked. Axial faces nominally touch with zero clearance; manufacturing tolerances and retention still require verification.")
+  21:t("六条梳子沿轴向连续跨过十四层，上下半圆各三条；每条有十三个层间定位齿，共 78 个接触特征。每条示范分前、中、后三段，固定轴向槽位后依次从外侧径向就位，在 +77／−75 mm 处端面对接。共用齿在接缝处分成 9 + 9 mm，避免完整端齿重叠。轮廓来自原始 CAD；径向外移 0.1 mm 仅为三角网格显示余量。分段接缝与连接动作为教学示意，实际接头、制造公差及强度需按制造设计核对。","Six continuous axial combs bridge all fourteen layers, three per semicircle. Each has thirteen inter-layer teeth: 78 contact features total. Each comb is illustrated in front, middle and rear sections, seated radially at their final axial registration and butt-joined at +77/−75 mm. Shared teeth split into 9 + 9 mm halves to avoid overlapping complete end teeth. Profiles derive from the source CAD; a rigid 0.1 mm outward allowance prevents mesh-display penetration. Section joints and joining motion are illustrative; use the manufacturing design for connectors, tolerances and strength.")
  };
  const note=sequence?sequenceNotes[step]:part==="locator"?t("层间隔块为长 18 mm 的中空圆柱，中间供 M6 螺杆通过。前五层和后五层各四个层间，每处四个，共 32 个；外径以实际打印文件为准。","The inter-layer spacer is an 18 mm hollow cylinder for an M6 rod. Four gaps in each five-layer end bank use four spacers each, 32 total. Use the supplied print file for the outside diameter."):
   part==="temporary-clip"||step===10?t("每片透明盖板使用 3 个临时卡扣，四片共 12 个。卡扣外形来自提供的 STEP，按整环规则位置展示；安装上盖时依次取下，完成后不留卡扣。具体卡点为教学示意。","Use 3 temporary clips per clear-cover quarter, 12 for the complete ring. The supplied STEP provides the clip shape; regular teaching positions show the sequence. Remove clips during cap installation and leave none in the finished assembly. Exact positions are illustrative."):
@@ -1085,7 +1101,7 @@ export default function AssemblyStage({step,ring,active=true,partId,initialProgr
   </div>
    {ringRetainerView&&<div className="assembly-stage__interface-status"><strong>{interfaceState}</strong><span>{t("实际零件 CAD · 卡扣位置与约束交接动作为教学示意","Actual part CAD · clip positions and restraint handover are illustrative")}</span>{step!==11&&<div><i data-material="clip"/>{t("临时卡扣","Temporary clip")}<i data-material="acrylic"/>{t("透明盖板 · 2 mm","Clear cover · 2 mm")}<i data-material="housing"/>{t("磁铁壳体与盖板","Housing and cap")}</div>}</div>}
    {step===18&&!part&&<div className="assembly-stage__interface-status"><strong>{progress<.44?t("磁层与三个支撑接口到位","Seat the layer at all three support interfaces"):progress<.66?t("T 型螺母滑入铝型材槽","Slide T-slot nuts into the extrusion channels"):progress<.87?t("沿现有支撑孔装入连接螺栓","Insert bolts through the existing holder holes"):t("紧固支撑与框架连接","Tighten the holder-to-frame connections")}</strong><span>{t("孔轴依据实际 CAD；紧固件尺寸与工具按提供物料核对。","Hole axes follow actual CAD; check hardware sizes and tools against the supplied parts.")}</span></div>}
-   {combStep&&<div className="assembly-stage__interface-status"><strong>{t("13 个层间 × 6 个定位结构 = 78 个","13 gaps × 6 locating structures = 78")}</strong><span>{t("六处避让安装点，上下半圆各三处 · 源 CAD 轮廓派生的教学单元","Six clearance-adjusted positions, three per semicircle · teaching units derived from the source CAD profile")}</span></div>}
+   {combStep&&<div className="assembly-stage__interface-status"><strong>{t("6 条连续梳子 · 每条 13 齿 · 共 78 个层间接触特征","6 continuous combs · 13 teeth each · 78 inter-layer contact features")}</strong><span>{t("前段 → 中段 → 后段径向就位，接缝端面对齐 · 分段连接为教学示意","Seat front → middle → rear sections radially and align butt seams · sectional joints are illustrative")}</span></div>}
    {selected&&<div className="assembly-stage__selected"><b>{selected.id}</b>{selectedDirection} · {t("中心半径","Center radius")} {Math.round(selected.radius*25)} mm<br/>{t("N 极箭头表示磁化方向，不是该处合场方向。","The N arrow indicates magnetization, not the local resultant field.")}</div>}
    <div className="assembly-stage__callout">
     <details className="assembly-stage__note">

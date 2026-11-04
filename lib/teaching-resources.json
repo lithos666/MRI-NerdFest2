@@ -1167,7 +1167,7 @@
     "updateStatus": "current",
     "versionStatus": "user-supplied-comb-cad",
     "downloadFilename": "comb-device.step",
-    "referenceNoteZh": "原始 4 槽、5 槽长梳形参考，未包含在 Final.step 内。第 11 阶段按用户确认演示 13 个层间各 6 个同形定位单元，共 78 个；本文件不是这些单元的独立制造文件。",
-    "referenceNoteEn": "Original 4-slot and 5-slot source profiles, supplied separately from Final.step. Stage 11 demonstrates the confirmed 6 identical alignment units per gap across 13 gaps, 78 total; this is not their standalone manufacturing file."
+    "referenceNoteZh": "原始 4 槽、5 槽长梳形参考，未包含在 Final.step 内。第 11 阶段展示 6 条轴向连续定位梳，每条 13 个内部梳齿，共 78 处接触；三段对接为教学示意，完整长梳及连接制造方案尚未随文件提供。",
+    "referenceNoteEn": "Original 4-slot and 5-slot source profiles, supplied separately from Final.step. Stage 11 shows 6 continuous axial comb assemblies with 13 internal teeth each, 78 contact features total. The three butt sections are illustrative; a full-length comb and verified joining design are not supplied in this file."
   }
 ]

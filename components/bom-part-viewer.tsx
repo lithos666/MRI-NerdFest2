@@ -32,7 +32,7 @@ export default function BOMPartViewer({ modelURL, imageURL, label, sourceName, a
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const isProductIllustration = modelURL.startsWith("/bom/products/");
-  const isDerivedTeachingUnit = modelURL.split("?")[0] === "/assembly/tools/comb-tooth-unit.glb";
+  const isDerivedTeachingUnit = /^\/assembly\/tools\/comb-(?:tooth-unit|continuous-rail|rail(?:-section-[1-3])?)\.glb$/.test(modelURL.split("?")[0]);
 
   useEffect(() => { runtime.current?.setActive(active); }, [active]);
   useEffect(() => {
