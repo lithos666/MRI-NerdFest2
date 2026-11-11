@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400" role="img" aria-label="Cylindrical 18 mm inter-layer spacer with an M6 through-passage; diameters are illustrative">
+  <title>Cylindrical 18 mm inter-layer spacer with an M6 through-passage</title>
+  <desc>The axial length is 18 mm. Outer diameter and M6 clearance-hole diameter are not specified; their appearance is illustrative.</desc>
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#d8cbb7"/><stop offset=".35" stop-color="#f5eddf"/><stop offset=".7" stop-color="#dfd3bf"/><stop offset="1" stop-color="#b4a891"/></linearGradient>
+    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fffaf1"/><stop offset="1" stop-color="#dfd3bf"/></linearGradient>
+    <linearGradient id="bore" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#655f52"/><stop offset="1" stop-color="#b4aa98"/></linearGradient>
+    <radialGradient id="floor"><stop stop-color="#b9c5d2" stop-opacity=".27"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <marker id="arrow" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" fill="#586c81"/></marker>
+  </defs>
+  <rect width="600" height="400" fill="#fff"/>
+  <ellipse cx="284" cy="316" rx="169" ry="43" fill="url(#floor)"/>
+  <path d="M188,135 A96,31 0 0 0 380,135 L380,283 A96,31 0 0 1 188,283 Z" fill="url(#body)" stroke="#7e817d" stroke-width="1.3"/>
+  <path d="M193,260 A91,29 0 0 0 375,260 M193,236 A91,29 0 0 0 375,236 M193,211 A91,29 0 0 0 375,211 M193,187 A91,29 0 0 0 375,187 M193,162 A91,29 0 0 0 375,162" fill="none" stroke="#b3a993" stroke-width=".65" opacity=".4"/>
+  <ellipse cx="284" cy="135" rx="96" ry="31" fill="url(#top)" stroke="#7e817d" stroke-width="1.3"/>
+  <ellipse cx="284" cy="135" rx="43" ry="14" fill="url(#bore)" stroke="#928879" stroke-width="1.1"/>
+  <ellipse cx="284" cy="141" rx="38" ry="8" fill="#f9fbfd"/>
+  <path d="M242,136 A42,13 0 0 0 326,136" fill="none" stroke="#c4baa5" stroke-width="1.2"/>
+  <path d="M391,135 H437 M391,283 H437" fill="none" stroke="#99a7b5" stroke-width="1.1"/>
+  <path d="M423,139 V279" fill="none" stroke="#586c81" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <rect x="436" y="194" width="74" height="30" rx="6" fill="#fff"/>
+  <text x="446" y="215" font-family="Arial,Helvetica,sans-serif" font-size="21" fill="#294866">18 mm</text>
+  <path d="M310,122 L344,75 H403" fill="none" stroke="#0071e3" stroke-width="1.5"/>
+  <circle cx="310" cy="122" r="3" fill="#0071e3"/>
+  <text x="359" y="67" font-family="Arial,Helvetica,sans-serif" font-size="22" fill="#0071e3">M6</text>
+</svg>

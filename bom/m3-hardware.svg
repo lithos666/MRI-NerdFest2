@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400" role="img" aria-label="Schematic M3 socket-head screw; illustration does not specify length">
+  <title>Schematic M3 socket-head screw; illustration does not specify length</title>
+  <defs>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#879aac"/><stop offset=".24" stop-color="#f6f9fc"/><stop offset=".52" stop-color="#cbd7e2"/><stop offset="1" stop-color="#8196aa"/></linearGradient>
+    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f8fbfd"/><stop offset="1" stop-color="#a0b3c5"/></linearGradient>
+    <radialGradient id="floor"><stop stop-color="#a9b8c6" stop-opacity=".26"/><stop offset="1" stop-color="#e5e9ee" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="600" height="400" fill="#fff"/>
+  <ellipse cx="300" cy="300" rx="220" ry="58" fill="url(#floor)"/>
+  <g transform="rotate(-49 295 208)" stroke="#71879b" stroke-width="1.5" stroke-linejoin="round">
+    <path d="M280 139H310V309Q295 323 280 309Z" fill="url(#metal)"/>
+    <ellipse cx="295" cy="309" rx="15" ry="6" fill="#a6b8c8"/>
+    <path d="M281 181L309 187M281 191L309 197M281 201L309 207M281 211L309 217M281 221L309 227M281 231L309 237M281 241L309 247M281 251L309 257M281 261L309 267M281 271L309 277M281 281L309 287M281 291L309 297M281 301L308 307" fill="none" stroke="#6f8599" stroke-width="1.7"/>
+    <path d="M255 103H335V139C335 164 255 164 255 139Z" fill="url(#metal)"/>
+    <path d="M260 111V138M267 115V144M326 114V142" fill="none" stroke="#a3b4c4" stroke-width="1"/>
+    <ellipse cx="295" cy="103" rx="40" ry="18" fill="url(#top)"/>
+    <path d="M278 99L292 94L309 99L312 106L298 112L281 107Z" fill="#536e86" stroke="#7e93a6"/>
+    <path d="M278 99L281 107L298 112L298 107L284 103Z" fill="#8298ac" stroke="none"/>
+    <path d="M262 97Q284 84 317 94" fill="none" stroke="#fff" stroke-width="2" opacity=".8"/>
+  </g>
+  <rect x="446" y="77" width="91" height="44" rx="18" fill="#edf5ff"/>
+  <text x="491.5" y="107" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#136fc0" text-anchor="middle">M3</text>
+</svg>
